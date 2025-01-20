@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common'
-import { AppController } from './app.controller'
-import { AppService } from './app.service'
 import { ConfigModule } from '@nestjs/config'
 import { AuthModule } from './auth/auth.module'
+import { LookupController } from './lookup/lookup.controller'
+import { ProfileController } from './profile/profile.controller'
+import { UMController } from './um/um.controller'
 
 let imports = [ConfigModule.forRoot({ isGlobal: true }), AuthModule]
 @Module({
 	imports: imports,
-	controllers: [AppController],
-	providers: [AppService],
+	controllers: [LookupController, ProfileController, UMController],
+	providers: [],
 })
 export class AppModule {}
