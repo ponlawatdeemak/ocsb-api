@@ -1,12 +1,15 @@
-import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { Controller, Get, UseGuards } from '@nestjs/common'
+import { AppService } from './app.service'
+import { ResponseDto } from '@interface/config/app.config'
+import { AuthGuard } from 'src/core/auth.guard'
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+	constructor(private readonly appService: AppService) {}
 
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
-  }
+	@Get('/')
+	@UseGuards(AuthGuard)
+	getHello() {
+		return new ResponseDto({ data: { name: 'test' } })
+	}
 }
