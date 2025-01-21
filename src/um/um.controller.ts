@@ -17,7 +17,7 @@ export class UMController {
 	@Get('/:userId')
 	@UseGuards(AuthGuard)
 	async get(@Request() req): Promise<ResponseDto<GetProfileDtoOut>> {
-		const id = req.params.id
+		const id = req.params.userId
 		const findid = mockUM.data.find((item) => item.id === id)
 		return new ResponseDto({ data: findid })
 	}
