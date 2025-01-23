@@ -9,7 +9,7 @@ typeorm-model-generator \
     --user $DATABASE_USER \
     --pass $DATABASE_PASSWORD \
     --port $DATABASE_PORT \
-    --schema public \
+    --schema sugarcane \
     --engine postgres \
     --output $OUT_PATH \
     --strictMode="?" \
