@@ -11,6 +11,14 @@ async function bootstrap() {
 	const config = app.get<ConfigService>(ConfigService)
 	const port = config.get<number>('PORT', 3001)
 	const basePath = config.get<string>('BASE_PATH', '/')
+	const ssh = {
+		DBPort: config.get<number>('DATABASE_PORT'),
+		DBHost: config.get<string>('DATABASE_HOST'),
+		DBDefaultPort: config.get<string>('DATABASE_DEFAULT_PORT'),
+		SSHUsername: config.get<string>('DATABASE_SSH_USER'),
+		SSHHost: config.get<string>('DATABASE_SSH_HOST'),
+		SSHPort: config.get<string>('DATABASE_SSH_PORT'),
+	}
 
 	const { httpAdapter } = app.get(HttpAdapterHost)
 	app.useGlobalFilters(new AppExceptionsFilter({ httpAdapter }))
@@ -18,6 +26,10 @@ async function bootstrap() {
 	app.useGlobalInterceptors(new TransformInterceptor())
 
 	app.setGlobalPrefix(basePath)
+	console.log(
+		'[SSH]',
+		`ssh -N -L ${ssh.DBPort}:${ssh.DBHost}:${ssh.DBDefaultPort} ${ssh.SSHUsername}@${ssh.SSHHost} -p ${ssh.SSHPort}`,
+	)
 	console.log('[WEB]', `http://localhost:${port}${basePath}`)
 	await app.listen(port)
 }
