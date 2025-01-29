@@ -1,15 +1,22 @@
 import { UserJwtPayload, UserMeta } from '@interface/auth.type'
-import { ResponseDto, StatustoOut } from '@interface/config/app.config'
+import { ResponseDto } from '@interface/config/app.config'
 import { errorResponse } from '@interface/config/error.config'
 import {
-	ChangePasswordProfileDtoIn,
-	ForgetPasswordDtoIn,
-	LoginDtoIn,
-	RefreshTokenDtoIn,
-	ResetPasswordForgotPasswordDtoIn,
-	VerifyTokenForgotPasswordDtoIn,
+	ChangePasswordAuthDtoIn,
+	ForgotPasswordAuthDtoIn,
+	LoginAuthDtoIn,
+	RefreshTokenAuthDtoIn,
+	ResetPasswordAuthDtoIn,
+	VerifyTokenAuthDtoIn,
 } from '@interface/dto/auth/auth.dto-in'
-import { LoginDtoOut, RefreshTokenDtoOut, VerifyTokenForgotPasswordDtoOut } from '@interface/dto/auth/auth.dto-out'
+import {
+	ChangePasswordAuthDtoOut,
+	ForgotPasswordAuthDtoOut,
+	LoginAuthDtoOut,
+	RefreshTokenAuthDtoOut,
+	ResetPasswordAuthDtoOut,
+	VerifyTokenAuthDtoOut,
+} from '@interface/dto/auth/auth.dto-out'
 import { UsersEntity } from '@interface/entities'
 import { Body, Controller, Post, UnauthorizedException, BadRequestException, UseGuards, Put } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -44,7 +51,7 @@ export class AuthController {
 	}
 
 	@Post('/login')
-	async login(@Body() body: LoginDtoIn): Promise<ResponseDto<LoginDtoOut>> {
+	async login(@Body() body: LoginAuthDtoIn): Promise<ResponseDto<LoginAuthDtoOut>> {
 		const { email, password } = body
 		const user = await this.userEntity.findOne({ where: { email, isDeleted: false } })
 		if (!user) {
@@ -70,7 +77,7 @@ export class AuthController {
 	}
 
 	@Post('/refresh-token')
-	async refreshToken(@Body() body: RefreshTokenDtoIn): Promise<ResponseDto<RefreshTokenDtoOut>> {
+	async refreshToken(@Body() body: RefreshTokenAuthDtoIn): Promise<ResponseDto<RefreshTokenAuthDtoOut>> {
 		try {
 			const data = jwt.verify(body.refreshToken, process.env.JWT_SECRET_REFRESH) as UserJwtPayload
 			const user = await this.userEntity.findOne({ where: { userId: data.id } })
@@ -97,7 +104,7 @@ export class AuthController {
 	}
 
 	@Post('/forget-password')
-	async forgotPassword(@Body() payload: ForgetPasswordDtoIn): Promise<ResponseDto<StatustoOut>> {
+	async forgotPassword(@Body() payload: ForgotPasswordAuthDtoIn): Promise<ResponseDto<ForgotPasswordAuthDtoOut>> {
 		const email = payload.email
 
 		const user = await this.userEntity.findOne({ where: { email, isDeleted: false } })
@@ -125,9 +132,7 @@ export class AuthController {
 	}
 
 	@Post('/verify-token')
-	async verifyToken(
-		@Body() payload: VerifyTokenForgotPasswordDtoIn,
-	): Promise<ResponseDto<VerifyTokenForgotPasswordDtoOut>> {
+	async verifyToken(@Body() payload: VerifyTokenAuthDtoIn): Promise<ResponseDto<VerifyTokenAuthDtoOut>> {
 		const resetPasswordToken = payload.token
 
 		const user = await this.userEntity.findOneBy({ resetPasswordToken, isDeleted: false })
@@ -141,7 +146,7 @@ export class AuthController {
 	}
 
 	@Put('/reset-password')
-	async resetPassword(@Body() payload: ResetPasswordForgotPasswordDtoIn): Promise<ResponseDto<StatustoOut>> {
+	async resetPassword(@Body() payload: ResetPasswordAuthDtoIn): Promise<ResponseDto<ResetPasswordAuthDtoOut>> {
 		const resetPasswordToken = payload.token
 
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
@@ -179,8 +184,8 @@ export class AuthController {
 	@UseGuards(AuthGuard)
 	async changePassword(
 		@User() user: UserMeta,
-		@Body() putData: ChangePasswordProfileDtoIn,
-	): Promise<ResponseDto<StatustoOut>> {
+		@Body() putData: ChangePasswordAuthDtoIn,
+	): Promise<ResponseDto<ChangePasswordAuthDtoOut>> {
 		const id = user.id
 		// start transcation
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
