@@ -7,8 +7,9 @@ import {
 	LoginDtoIn,
 	RefreshTokenDtoIn,
 	ResetPasswordForgotPasswordDtoIn,
+	VerifyTokenForgotPasswordDtoIn,
 } from '@interface/dto/auth/auth.dto-in'
-import { LoginDtoOut, RefreshTokenDtoOut } from '@interface/dto/auth/auth.dto-out'
+import { LoginDtoOut, RefreshTokenDtoOut, VerifyTokenForgotPasswordDtoOut } from '@interface/dto/auth/auth.dto-out'
 import { UsersEntity } from '@interface/entities'
 import { Body, Controller, Post, UnauthorizedException, BadRequestException, UseGuards, Put } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -121,6 +122,22 @@ export class AuthController {
 		await this.mailService.sendResetPassword(user.email, user.firstName, resetLink, RESET_PASSWORD_TIMEOUT)
 
 		return new ResponseDto({ data: { success: true } })
+	}
+
+	@Post('/verify-token')
+	async verifyToken(
+		@Body() payload: VerifyTokenForgotPasswordDtoIn,
+	): Promise<ResponseDto<VerifyTokenForgotPasswordDtoOut>> {
+		const resetPasswordToken = payload.token
+
+		const user = await this.userEntity.findOneBy({ resetPasswordToken, isDeleted: false })
+		if (!user) throw new BadRequestException(errorResponse.INVALID_TOKEN)
+
+		const now = new Date()
+
+		if (now > user.resetPasswordExpire) throw new BadRequestException(errorResponse.EXPIRED_TOKEN)
+
+		return new ResponseDto({ data: { isValid: true } })
 	}
 
 	@Put('/reset-password')
