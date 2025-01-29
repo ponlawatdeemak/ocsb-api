@@ -1,12 +1,21 @@
 import { ResponseDto } from '@interface/config/app.config'
 import { GetProfileDtoOut } from '@interface/dto/profile/profile.dto-out'
 import { StatustoOut } from '@interface/config/app.config'
-import { Controller, Delete, Get, Patch, Post, Put, Request, UseGuards } from '@nestjs/common'
+import { Controller, Delete, Get, Patch, Post, Put, Request, UseGuards, BadRequestException } from '@nestjs/common'
 import { AuthGuard } from 'src/core/auth.guard'
 import { mockUM } from './mock-um'
+import { InjectRepository } from '@nestjs/typeorm'
+import { UsersEntity } from '@interface/entities'
+import { Repository } from 'typeorm'
+import { errorResponse } from '@interface/config/error.config'
 
 @Controller('um')
 export class UMController {
+	constructor(
+		@InjectRepository(UsersEntity)
+		private readonly userEntity: Repository<UsersEntity>,
+	) {}
+
 	@Get('/search')
 	@UseGuards(AuthGuard)
 	async search(): Promise<ResponseDto<GetProfileDtoOut[]>> {
@@ -18,8 +27,25 @@ export class UMController {
 	@UseGuards(AuthGuard)
 	async get(@Request() req): Promise<ResponseDto<GetProfileDtoOut>> {
 		const id = req.params.userId
-		const findid = mockUM.data.find((item) => item.id === id)
-		return new ResponseDto({ data: findid })
+		const result = await this.userEntity
+			.createQueryBuilder('users')
+			.select([
+				'users.userId',
+				'users.firstName',
+				'users.lastName',
+				'users.email',
+				'users.phone',
+				'users.isActive',
+			])
+			.leftJoinAndSelect('users.role', 'role')
+			.leftJoinAndSelect('users.regions', 'regions')
+			.leftJoinAndSelect('users.position', 'position')
+			.leftJoinAndSelect('users.region', 'region')
+			.leftJoinAndSelect('users.province', 'province')
+			.where({ userId: id })
+			.getMany()
+		if (result.length === 0) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
+		return new ResponseDto({ data: result[0] as any })
 	}
 
 	@Post()
