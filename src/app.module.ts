@@ -7,6 +7,7 @@ import { UMController } from './um/um.controller'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { TypeOrmConfigService } from '@libs/typeorm'
 import { UsersEntity } from '@interface/entities'
+import { RandomService } from './core/random.service'
 
 let imports = [
 	ConfigModule.forRoot({ isGlobal: true }),
@@ -17,6 +18,6 @@ let imports = [
 @Module({
 	imports: imports,
 	controllers: [LookupController, ProfileController, UMController],
-	providers: [],
+	providers: [RandomService],
 })
 export class AppModule {}
