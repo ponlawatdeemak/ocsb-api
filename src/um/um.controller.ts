@@ -13,11 +13,13 @@ import {
 	BadRequestException,
 	Body,
 	Query,
+	UploadedFile,
+	UseInterceptors,
 } from '@nestjs/common'
 import { AuthGuard } from 'src/core/auth.guard'
 import { mockUM } from './mock-um'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
-import { RegionsEntity, UsersEntity } from '@interface/entities'
+import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
 import { Repository, EntityManager, In, Not } from 'typeorm'
 import { errorResponse } from '@interface/config/error.config'
 import {
@@ -38,6 +40,10 @@ import { User } from 'src/core/user.decorator'
 import { UserMeta } from '@interface/auth.type'
 import { hashPassword } from 'src/core/utils'
 import { RandomService } from 'src/core/random.service'
+import { FileInterceptor } from '@nestjs/platform-express'
+import * as XLSX from 'xlsx'
+import { importUserTemplate, ImportValidatorType } from '@interface/config/um.config'
+
 @Controller('um')
 export class UMController {
 	constructor(
@@ -48,6 +54,18 @@ export class UMController {
 
 		@InjectRepository(UsersEntity)
 		private readonly userEntity: Repository<UsersEntity>,
+
+		@InjectRepository(RegionsEntity)
+		private readonly repoRegions: Repository<RegionsEntity>,
+
+		@InjectRepository(PositionEntity)
+		private readonly repoPosition: Repository<PositionEntity>,
+
+		@InjectRepository(ProvincesEntity)
+		private readonly repoProvinces: Repository<ProvincesEntity>,
+
+		@InjectRepository(RolesEntity)
+		private readonly repoRoles: Repository<RolesEntity>,
 	) {}
 
 	@Get('/search')
@@ -217,10 +235,146 @@ export class UMController {
 	// 	return new ResponseDto({ data: { success: true } })
 	// }
 
+	// @Post('/import/csv')
+	// @UseGuards(AuthGuard)
+	// async postImportCsv(): Promise<ResponseDto<StatustoOut>> {
+	// 	return new ResponseDto({ data: { success: true } })
+	// }
+
 	@Post('/import/csv')
 	@UseGuards(AuthGuard)
-	async postImportCsv(): Promise<ResponseDto<StatustoOut>> {
-		return new ResponseDto({ data: { success: true } })
+	@UseInterceptors(FileInterceptor('file'))
+	async postImportCsv(@User() user: UserMeta, @UploadedFile() file: Express.Multer.File): Promise<ResponseDto<any>> {
+		const userId = user.id
+
+		console.log('userId ', userId)
+
+		// const lutStationType = await this.lutStationTypeEntity
+		// 	.createQueryBuilder('stationType')
+		// 	.select(['stationType.id', 'stationType.name'])
+		// 	.getMany()
+
+		const region = await this.repoRegions
+			.createQueryBuilder('region')
+			.select(['region.regionId', 'region.regionName', 'region.regionNameEn'])
+			.getMany()
+
+		const position = await this.repoPosition
+			.createQueryBuilder('position')
+			.select(['position.positionId', 'position.positionName', 'position.positionNameEn'])
+			.getMany()
+
+		const province = await this.repoProvinces
+			.createQueryBuilder('province')
+			.select(['province.adm1Code', 'province.provinceName', 'province.provinceNameEn'])
+			.getMany()
+
+		const role = await this.repoRoles.createQueryBuilder('role').select(['role.roleId', 'role.roleName']).getMany()
+
+		// const lookup = {
+		// 	position,
+		// 	region,
+		// 	roles,
+		// }
+
+		// private readonly repoRegions: Repository<RegionsEntity>,
+
+		// @InjectRepository(PositionEntity)
+		// private readonly repoPosition: Repository<PositionEntity>,
+		//
+		console.log('province ', province)
+		console.log('position ', position)
+		console.log('role ', role)
+
+		console.log('file ', file)
+		console.log('user ', user)
+
+		try {
+			const wb = XLSX.read(file.buffer, { type: 'buffer' })
+			const sheetName: string = wb.SheetNames[0]
+			const worksheet: XLSX.WorkSheet = wb.Sheets[sheetName]
+			const jsonData = XLSX.utils.sheet_to_json(worksheet)
+
+			const arrayOfObject = []
+
+			jsonData.forEach((item) => {
+				const object = {}
+				// const coordinate = []
+				importUserTemplate.forEach((config) => {
+					if (item[config.title] !== null || item[config.title] !== undefined || item[config.title] !== '') {
+						if (config.validator.includes(ImportValidatorType.Lookup)) {
+							if (config.fieldName === 'position') {
+								const objPosition = position.find(
+									(p) =>
+										p.positionName.trim() === item?.[config.title]?.trim() ||
+										p.positionNameEn.trim() === item?.[config.title]?.trim(),
+								)
+
+								object[config.fieldName] = objPosition
+								console.log(' objPosition ', objPosition)
+							}
+
+							if (config.fieldName === 'region') {
+								const objRegion = region.find(
+									(r) =>
+										r.regionName.trim() === item?.[config.title]?.trim() ||
+										r.regionNameEn.trim() === item?.[config.title]?.trim(),
+								)
+
+								object[config.fieldName] = objRegion
+							}
+
+							if (config.fieldName === 'regions') {
+								const splitRegion = item?.[config.title]?.toString()?.split(',')
+
+								const res = region?.filter((r) => {
+									return !!splitRegion?.find((sReg) => sReg.toString().trim() === r.regionName.trim())
+								})
+
+								object[config.fieldName] = res
+							}
+
+							if (config.fieldName === 'role') {
+								const objRole = role.find((r) => r?.roleName?.trim() === item?.[config.title]?.trim())
+
+								object[config.fieldName] = objRole
+							}
+
+							if (config.fieldName === 'province') {
+								const objProvince = province.find(
+									(r) =>
+										r?.provinceName?.trim() === item?.[config.title]?.trim() ||
+										r?.provinceNameEn?.trim() === item?.[config.title]?.trim(),
+								)
+
+								object[config.fieldName] = objProvince
+							}
+						} else {
+							object[config.fieldName] = item[config.title]
+						}
+					}
+				})
+
+				// object['createdBy'] = { userId: Number(userId) }
+				arrayOfObject.push(object)
+			})
+
+			console.log(' arrayOfObject ', arrayOfObject, new Date())
+
+			// start transcation
+			await this.entityManager.transaction(async (transactionalEntityManager) => {
+				const list = transactionalEntityManager.create(UsersEntity, arrayOfObject)
+
+				// import station
+				await transactionalEntityManager.save(list)
+			})
+
+			return new ResponseDto()
+		} catch (error) {
+			console.error(error)
+		}
+
+		return new ResponseDto()
 	}
 
 	@Post('/import/template')
