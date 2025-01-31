@@ -164,7 +164,7 @@ export class AuthController {
 			user.password = await hash(payload.newPassword)
 			user.resetPasswordToken = null
 			user.resetPasswordExpire = null
-			user.updatedBy = user.userId
+			user.updatedBy = { userId: user.userId }
 			user.updatedAt = new Date()
 			await transactionalEntityManager.save(user)
 
@@ -197,7 +197,7 @@ export class AuthController {
 
 			userRow.password = await hashPassword(putData.newPassword)
 			userRow.updatedAt = new Date()
-			userRow.updatedBy = id
+			userRow.updatedBy = { userId: id }
 			// update user
 			await transactionalEntityManager.save(userRow)
 

@@ -17,15 +17,15 @@ import {
 	UseInterceptors,
 } from '@nestjs/common'
 import { AuthGuard } from 'src/core/auth.guard'
-import { mockUM } from './mock-um'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
 import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
-import { Repository, EntityManager, In, Not } from 'typeorm'
+import { Repository, EntityManager, In } from 'typeorm'
 import { errorResponse } from '@interface/config/error.config'
 import {
 	DeleteUserDtoOut,
 	GetUserDtoOut,
 	PostUserDtoOut,
+	PostValidateCsvUMDtoOut,
 	PutUserDtoOut,
 	SearchUserDtoOut,
 } from '@interface/dto/um/um.dto-out'
@@ -132,8 +132,8 @@ export class UMController {
 			const newPassword = this.randomService.generateSixDigitString()
 
 			const newUser = transactionalEntityManager.create(UsersEntity, payload)
-			newUser.createdBy = user?.id
-			newUser.updatedBy = user?.id
+			newUser.createdBy = { userId: user?.id }
+			newUser.updatedBy = { userId: user?.id }
 			newUser.createdAt = new Date()
 			newUser.updatedAt = new Date()
 			newUser.password = await hashPassword(newPassword)
@@ -190,7 +190,7 @@ export class UMController {
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			Object.assign(existingUser, payload)
-			existingUser.updatedBy = user?.id
+			existingUser.updatedBy = { userId: user?.id }
 			existingUser.updatedAt = new Date()
 			if (payload.regions) {
 				const regions = await transactionalEntityManager.findBy(RegionsEntity, {
@@ -219,7 +219,7 @@ export class UMController {
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			existingUser.isDeleted = true
-			existingUser.updatedBy = user?.id
+			existingUser.updatedBy = { userId: user?.id }
 			existingUser.updatedAt = new Date()
 
 			// บันทึกข้อมูลใหม่
@@ -229,30 +229,36 @@ export class UMController {
 		return new ResponseDto({ data: { id: params.userId } })
 	}
 
-	// @Post('/import/xlsx')
-	// @UseGuards(AuthGuard)
-	// async postImportXlsx(): Promise<ResponseDto<StatustoOut>> {
-	// 	return new ResponseDto({ data: { success: true } })
-	// }
+	@Post('/validate/csv')
+	@UseGuards(AuthGuard)
+	@UseInterceptors(FileInterceptor('file'))
+	async uploadFile(@UploadedFile() file: Express.Multer.File): Promise<ResponseDto<PostValidateCsvUMDtoOut>> {
+		const wb = XLSX.read(file.buffer, { type: 'buffer' })
 
-	// @Post('/import/csv')
-	// @UseGuards(AuthGuard)
-	// async postImportCsv(): Promise<ResponseDto<StatustoOut>> {
-	// 	return new ResponseDto({ data: { success: true } })
-	// }
+		console.log('xxx')
+
+		const sheetName: string = wb.SheetNames[0]
+		const worksheet: XLSX.WorkSheet = wb.Sheets[sheetName]
+
+
+		return new ResponseDto()
+
+		// return new ResponseDto({
+		// 	data: {
+		// 		fileName: file.originalname,
+		// 		totalRow: totalRow,
+		// 		totalImportableRow: totalImportableRow,
+		// 		totalNonImportableRow: totalNonImportableRow,
+		// 		errorList: errorList, // Optional: list of all validation errors found
+		// 	},
+		// })
+	}
 
 	@Post('/import/csv')
 	@UseGuards(AuthGuard)
 	@UseInterceptors(FileInterceptor('file'))
 	async postImportCsv(@User() user: UserMeta, @UploadedFile() file: Express.Multer.File): Promise<ResponseDto<any>> {
 		const userId = user.id
-
-		console.log('userId ', userId)
-
-		// const lutStationType = await this.lutStationTypeEntity
-		// 	.createQueryBuilder('stationType')
-		// 	.select(['stationType.id', 'stationType.name'])
-		// 	.getMany()
 
 		const region = await this.repoRegions
 			.createQueryBuilder('region')
@@ -271,24 +277,6 @@ export class UMController {
 
 		const role = await this.repoRoles.createQueryBuilder('role').select(['role.roleId', 'role.roleName']).getMany()
 
-		// const lookup = {
-		// 	position,
-		// 	region,
-		// 	roles,
-		// }
-
-		// private readonly repoRegions: Repository<RegionsEntity>,
-
-		// @InjectRepository(PositionEntity)
-		// private readonly repoPosition: Repository<PositionEntity>,
-		//
-		console.log('province ', province)
-		console.log('position ', position)
-		console.log('role ', role)
-
-		console.log('file ', file)
-		console.log('user ', user)
-
 		try {
 			const wb = XLSX.read(file.buffer, { type: 'buffer' })
 			const sheetName: string = wb.SheetNames[0]
@@ -299,7 +287,6 @@ export class UMController {
 
 			jsonData.forEach((item) => {
 				const object = {}
-				// const coordinate = []
 				importUserTemplate.forEach((config) => {
 					if (item[config.title] !== null || item[config.title] !== undefined || item[config.title] !== '') {
 						if (config.validator.includes(ImportValidatorType.Lookup)) {
@@ -311,7 +298,6 @@ export class UMController {
 								)
 
 								object[config.fieldName] = objPosition
-								console.log(' objPosition ', objPosition)
 							}
 
 							if (config.fieldName === 'region') {
@@ -354,12 +340,9 @@ export class UMController {
 						}
 					}
 				})
-
-				// object['createdBy'] = { userId: Number(userId) }
+				object['createdBy'] = { userId: Number(userId) }
 				arrayOfObject.push(object)
 			})
-
-			console.log(' arrayOfObject ', arrayOfObject, new Date())
 
 			// start transcation
 			await this.entityManager.transaction(async (transactionalEntityManager) => {
@@ -372,9 +355,8 @@ export class UMController {
 			return new ResponseDto()
 		} catch (error) {
 			console.error(error)
+			return new ResponseDto()
 		}
-
-		return new ResponseDto()
 	}
 
 	@Post('/import/template')
