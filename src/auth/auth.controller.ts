@@ -1,8 +1,7 @@
-import { UserJwtPayload, UserMeta } from '@interface/auth.type'
+import { UserJwtPayload } from '@interface/auth.type'
 import { ResponseDto } from '@interface/config/app.config'
 import { errorResponse } from '@interface/config/error.config'
 import {
-	ChangePasswordAuthDtoIn,
 	ForgotPasswordAuthDtoIn,
 	LoginAuthDtoIn,
 	RefreshTokenAuthDtoIn,
@@ -10,7 +9,6 @@ import {
 	VerifyTokenAuthDtoIn,
 } from '@interface/dto/auth/auth.dto-in'
 import {
-	ChangePasswordAuthDtoOut,
 	ForgotPasswordAuthDtoOut,
 	LoginAuthDtoOut,
 	RefreshTokenAuthDtoOut,
@@ -18,7 +16,7 @@ import {
 	VerifyTokenAuthDtoOut,
 } from '@interface/dto/auth/auth.dto-out'
 import { UsersEntity } from '@interface/entities'
-import { Body, Controller, Post, UnauthorizedException, BadRequestException, UseGuards, Put } from '@nestjs/common'
+import { Body, Controller, Post, UnauthorizedException, BadRequestException, Put } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
 import * as bcrypt from 'bcryptjs'
@@ -26,8 +24,6 @@ import * as jwt from 'jsonwebtoken'
 import { generateTokenHex, hashPassword, hash } from 'src/core/utils'
 import { EntityManager, Repository } from 'typeorm'
 import { MailService } from 'src/core/mail.service'
-import { AuthGuard } from 'src/core/auth.guard'
-import { User } from 'src/core/user.decorator'
 @Controller('auth')
 export class AuthController {
 	private readonly accessTokenExpried = '1h'
@@ -53,7 +49,7 @@ export class AuthController {
 	@Post('/login')
 	async login(@Body() body: LoginAuthDtoIn): Promise<ResponseDto<LoginAuthDtoOut>> {
 		const { email, password } = body
-		const user = await this.userEntity.findOne({ where: { email, isDeleted: false } })
+		const user = await this.userEntity.findOne({ where: { email, isDeleted: false, isActive: true } })
 		if (!user) {
 			throw new UnauthorizedException(errorResponse.INCORRECT_CREDENTIALS)
 		}
@@ -107,7 +103,7 @@ export class AuthController {
 	async forgotPassword(@Body() payload: ForgotPasswordAuthDtoIn): Promise<ResponseDto<ForgotPasswordAuthDtoOut>> {
 		const email = payload.email
 
-		const user = await this.userEntity.findOne({ where: { email, isDeleted: false } })
+		const user = await this.userEntity.findOne({ where: { email, isDeleted: false, isActive: true } })
 		if (!user) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 
 		// read config
@@ -135,7 +131,7 @@ export class AuthController {
 	async verifyToken(@Body() payload: VerifyTokenAuthDtoIn): Promise<ResponseDto<VerifyTokenAuthDtoOut>> {
 		const resetPasswordToken = payload.token
 
-		const user = await this.userEntity.findOneBy({ resetPasswordToken, isDeleted: false })
+		const user = await this.userEntity.findOneBy({ resetPasswordToken, isDeleted: false, isActive: true })
 		if (!user) throw new BadRequestException(errorResponse.INVALID_TOKEN)
 
 		const now = new Date()
@@ -164,7 +160,7 @@ export class AuthController {
 			user.password = await hash(payload.newPassword)
 			user.resetPasswordToken = null
 			user.resetPasswordExpire = null
-			user.updatedBy = user.userId
+			user.updatedBy = { userId: user.userId }
 			user.updatedAt = new Date()
 			await transactionalEntityManager.save(user)
 
@@ -174,40 +170,6 @@ export class AuthController {
 			// newLog.operatedBy = { id: user.id }
 			// newLog.operatedDt = new Date()
 			// newLog.type = { id: LutLogUserType.resetPassword }
-			// await transactionalEntityManager.save(newLog)
-		})
-
-		return new ResponseDto({ data: { success: true } })
-	}
-
-	@Put('/change-password')
-	@UseGuards(AuthGuard)
-	async changePassword(
-		@User() user: UserMeta,
-		@Body() putData: ChangePasswordAuthDtoIn,
-	): Promise<ResponseDto<ChangePasswordAuthDtoOut>> {
-		const id = user.id
-		// start transcation
-		await this.entityManager.transaction(async (transactionalEntityManager) => {
-			const userRow = await transactionalEntityManager.findOneBy(UsersEntity, { userId: id })
-
-			const IsValidOldPassword = await bcrypt.compare(putData.oldPassword, userRow.password)
-
-			if (!IsValidOldPassword) throw new BadRequestException('Invalid old password')
-
-			userRow.password = await hashPassword(putData.newPassword)
-			userRow.updatedAt = new Date()
-			userRow.updatedBy = id
-			// update user
-			await transactionalEntityManager.save(userRow)
-
-			// insert log
-			// const newLog = new LogUserEntity()
-			// newLog.operatedDt = new Date()
-			// newLog.operatedBy = { id }
-			// newLog.type = { id: LutLogUserType.changePassword }
-			// newLog.operatedAccount = userRow.email
-
 			// await transactionalEntityManager.save(newLog)
 		})
 

@@ -19,3 +19,13 @@ export function generateTokenHex(length) {
 	crypto.getRandomValues(array)
 	return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
+
+export function validatePayload(Arry: Array<string>) {
+	const checkArray = Array.isArray(Arry) ? trimPayload(Arry) : trimPayload([Arry])
+	return checkArray
+}
+
+export function trimPayload(Arry: Array<string>) {
+	const trimmedData = Arry.map((item) => item.trim())
+	return trimmedData
+}
