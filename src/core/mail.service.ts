@@ -31,6 +31,7 @@ export class MailService {
 		// Compile the Pug template to HTML
 		const html = pug.renderFile(path.join(__dirname, '../../views/resetPasswordEmail.pug'), {
 			name,
+			userEmail,
 			resetLink,
 			timeoutHours,
 		})

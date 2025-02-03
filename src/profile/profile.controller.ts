@@ -40,6 +40,8 @@ export class ProfileController {
 				'users.isActive',
 			])
 			.leftJoinAndSelect('users.role', 'role')
+			.leftJoinAndSelect('role.roleFeatures', 'role_features')
+			.leftJoinAndSelect('role_features.feature', 'feature') // Join Feature Table ผ่าน role_feature
 			.leftJoinAndSelect('users.regions', 'regions')
 			.leftJoinAndSelect('users.position', 'position')
 			.leftJoinAndSelect('users.region', 'region')
@@ -92,3 +94,4 @@ export class ProfileController {
 		return new ResponseDto({ data: { success: true } })
 	}
 }
+

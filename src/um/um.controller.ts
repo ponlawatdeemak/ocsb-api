@@ -16,6 +16,7 @@ import {
 	UploadedFile,
 	UseInterceptors,
 	Res,
+	StreamableFile,
 } from '@nestjs/common'
 import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
 import { AuthGuard } from 'src/core/auth.guard'
@@ -24,23 +25,24 @@ import { Repository, EntityManager, In } from 'typeorm'
 import { errorResponse } from '@interface/config/error.config'
 import {
 	DeleteImageUserDtoOut,
-	DeleteUserDtoOut,
-	GetUserDtoOut,
+	DeleteUMDtoOut,
+	GetUMDtoOut,
 	PostImageUserDtoOut,
-	PostUserDtoOut,
+	PostImportCsvUMDtoOut,
+	PostUMDtoOut,
 	PostValidateCsvUMDtoOut,
-	PutUserDtoOut,
-	SearchUserDtoOut,
+	PutUMDtoOut,
+	SearchUMDtoOut,
 } from '@interface/dto/um/um.dto-out'
 import {
 	DeleteImageUserDtoIn,
-	DeleteUserDtoIn,
+	DeleteUMDtoIn,
 	GetImageUserDtoIn,
-	GetUserDtoIn,
+	GetUMDtoIn,
 	PostImageUserDtoIn,
-	PostUserDtoIn,
-	PutUserDtoIn,
-	SearchUserDtoIn,
+	PostUMDtoIn,
+	PutUMDtoIn,
+	SearchUMDtoIn,
 } from '@interface/dto/um/um.dto.in'
 import { User } from 'src/core/user.decorator'
 import { UserMeta } from '@interface/auth.type'
@@ -50,6 +52,9 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import * as XLSX from 'xlsx'
 import { importUserTemplate, ImportValidatorType } from '@interface/config/um.config'
 import { MailService } from 'src/core/mail.service'
+import * as path from 'path'
+import * as fs from 'fs'
+
 @Controller('um')
 export class UMController {
 	constructor(
@@ -77,7 +82,7 @@ export class UMController {
 
 	@Get('/search')
 	@UseGuards(AuthGuard)
-	async search(@Query() query: SearchUserDtoIn): Promise<ResponseDto<SearchUserDtoOut[]>> {
+	async search(@Query() query: SearchUMDtoIn): Promise<ResponseDto<SearchUMDtoOut[]>> {
 		const queryBuilder = this.userEntity
 			.createQueryBuilder('users')
 			.select([
@@ -147,13 +152,12 @@ export class UMController {
 
 	@Post()
 	@UseGuards(AuthGuard)
-	async post(@Body() payload: PostUserDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostUserDtoOut>> {
+	async post(@Body() payload: PostUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostUMDtoOut>> {
 		let newUserId = null
 		const cnt = await this.userEntity.countBy({ email: payload.email, isDeleted: false })
 		if (cnt > 0) throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
-			const newPassword = this.randomService.generateSixDigitString()
-
+			const newPassword = this.randomService.generatePassword()
 			const newUser = transactionalEntityManager.create(UsersEntity, payload)
 			newUser.createdBy = { userId: user?.id }
 			newUser.updatedBy = { userId: user?.id }
@@ -179,8 +183,8 @@ export class UMController {
 	@Get('/:userId')
 	@UseGuards(AuthGuard)
 	async get(@Request() req): Promise<ResponseDto<GetProfileDtoOut>> {
-		const params: GetUserDtoIn = req.params
-		const result: GetUserDtoOut[] = await this.userEntity
+		const params: GetUMDtoIn = req.params
+		const result: GetUMDtoOut[] = await this.userEntity
 			.createQueryBuilder('users')
 			.select([
 				'users.userId',
@@ -203,9 +207,9 @@ export class UMController {
 
 	@Put('/:userId')
 	@UseGuards(AuthGuard)
-	async put(@Request() req, @User() user: UserMeta): Promise<ResponseDto<PutUserDtoOut>> {
+	async put(@Request() req, @User() user: UserMeta): Promise<ResponseDto<PutUMDtoOut>> {
 		const userId = req.params.userId
-		const payload: PutUserDtoIn = req.body
+		const payload: PutUMDtoIn = req.body
 		const existingUser = await this.userEntity.findOne({
 			where: { userId, isDeleted: false },
 			relations: ['regions'],
@@ -234,8 +238,8 @@ export class UMController {
 
 	@Delete('/:userId')
 	@UseGuards(AuthGuard)
-	async delete(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteUserDtoOut>> {
-		const params: DeleteUserDtoIn = req.params
+	async delete(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteUMDtoOut>> {
+		const params: DeleteUMDtoIn = req.params
 		const existingUser = await this.userEntity.findOne({
 			where: { userId: params.userId, isDeleted: false },
 		})
@@ -258,29 +262,108 @@ export class UMController {
 	async uploadFile(@UploadedFile() file: Express.Multer.File): Promise<ResponseDto<PostValidateCsvUMDtoOut>> {
 		const wb = XLSX.read(file.buffer, { type: 'buffer' })
 
-		console.log('xxx')
-
 		const sheetName: string = wb.SheetNames[0]
 		const worksheet: XLSX.WorkSheet = wb.Sheets[sheetName]
 
+		let totalImportableRow = 0
+		let totalNonImportableRow = 0
 
-		return new ResponseDto()
+		const jsonData = XLSX.utils.sheet_to_json(worksheet)
+		const totalRow = jsonData.length
 
-		// return new ResponseDto({
-		// 	data: {
-		// 		fileName: file.originalname,
-		// 		totalRow: totalRow,
-		// 		totalImportableRow: totalImportableRow,
-		// 		totalNonImportableRow: totalNonImportableRow,
-		// 		errorList: errorList, // Optional: list of all validation errors found
-		// 	},
-		// })
+		const errorList: {
+			rowNo: number
+			remarkList: string[]
+		}[] = []
+
+		const validateRow = async (row: any, index: number) => {
+			const remarkList = []
+			let hasError = false
+
+			for (let index = 0; index < importUserTemplate.length; index++) {
+				const element = importUserTemplate[index]
+				const value = row[element.title]
+				if (element.condition?.required && !value) {
+					remarkList.push(`กรุณาระบุ${element?.title}`)
+					hasError = true
+				}
+				if (element.condition?.userDuplicate && value) {
+					const user = await this.userEntity.findOne({
+						where: [{ [element.condition?.userDuplicate]: value }],
+					})
+					if (user) {
+						remarkList.push(`ข้อมูล${element?.title}ซ้ำ`)
+						hasError = true
+					}
+				}
+				if (element.condition?.lookup && value) {
+					const splitValue = value
+						.toString()
+						.split(',')
+						.map((item) => item.trim())
+					let result = null
+					if (element.fieldName === 'role') {
+						result = await this.entityManager
+							.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
+							.where({ [element.condition?.lookupField]: In(splitValue) })
+							.getMany()
+					} else {
+						result = await this.entityManager
+							.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
+							.where({ [element.condition?.lookupField]: In(splitValue) })
+							.orWhere({ [`${element.condition?.lookupField}En`]: In(splitValue) })
+							.getMany()
+					}
+					if (result.length === 0) {
+						remarkList.push(`ไม่พบประเภท${element?.title}`)
+						hasError = true
+					}
+				}
+
+				if (element.condition?.maxLength && value) {
+					if (value.toString().length > element.condition?.maxLength) {
+						remarkList.push(`${element?.title}ความยาวตัวอักษรเกินกำหนด`)
+						hasError = true
+					}
+				}
+			}
+			if (hasError) {
+				return { hasError: hasError, errorItem: { rowNo: index + 1, remarkList } }
+			} else {
+				return { hasError: hasError }
+			}
+		}
+
+		for (let jsonIndex = 0; jsonIndex < jsonData.length; jsonIndex++) {
+			const row = jsonData[jsonIndex]
+			const validationResult = await validateRow(row, jsonIndex)
+
+			if (validationResult.hasError) {
+				totalNonImportableRow++
+				errorList.push(validationResult.errorItem)
+			} else {
+				totalImportableRow++
+			}
+		}
+
+		return new ResponseDto({
+			data: {
+				fileName: file.originalname,
+				totalRow: totalRow,
+				totalImportableRow: totalImportableRow,
+				totalNonImportableRow: totalNonImportableRow,
+				errorList: errorList, // Optional: list of all validation errors found
+			},
+		})
 	}
 
 	@Post('/import/csv')
 	@UseGuards(AuthGuard)
 	@UseInterceptors(FileInterceptor('file'))
-	async postImportCsv(@User() user: UserMeta, @UploadedFile() file: Express.Multer.File): Promise<ResponseDto<any>> {
+	async postImportCsv(
+		@User() user: UserMeta,
+		@UploadedFile() file: Express.Multer.File,
+	): Promise<ResponseDto<PostImportCsvUMDtoOut>> {
 		const userId = user.id
 
 		const region = await this.repoRegions
@@ -307,13 +390,17 @@ export class UMController {
 			const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
 			const arrayOfObject = []
-
+			// Loop Data ที่ได้จาก Excel
 			jsonData.forEach((item) => {
 				const object = {}
 				importUserTemplate.forEach((config) => {
+					// Check ก่อนว่ามี key ไหม
 					if (item[config.title] !== null || item[config.title] !== undefined || item[config.title] !== '') {
+						// Check validator คือ Lookup
 						if (config.validator.includes(ImportValidatorType.Lookup)) {
+							// เอา Data จาก Excel ไปหาข้อมูลตาม look up
 							if (config.fieldName === 'position') {
+								//ตำแหน่ง
 								const objPosition = position.find(
 									(p) =>
 										p.positionName.trim() === item?.[config.title]?.trim() ||
@@ -324,6 +411,7 @@ export class UMController {
 							}
 
 							if (config.fieldName === 'region') {
+								//ภาค
 								const objRegion = region.find(
 									(r) =>
 										r.regionName.trim() === item?.[config.title]?.trim() ||
@@ -334,6 +422,7 @@ export class UMController {
 							}
 
 							if (config.fieldName === 'regions') {
+								//ภูมิภาคที่ดูแล
 								const splitRegion = item?.[config.title]?.toString()?.split(',')
 
 								const res = region?.filter((r) => {
@@ -344,12 +433,14 @@ export class UMController {
 							}
 
 							if (config.fieldName === 'role') {
+								//สิทธ์การเข้าถึง
 								const objRole = role.find((r) => r?.roleName?.trim() === item?.[config.title]?.trim())
 
 								object[config.fieldName] = objRole
 							}
 
 							if (config.fieldName === 'province') {
+								//จังหวัด
 								const objProvince = province.find(
 									(r) =>
 										r?.provinceName?.trim() === item?.[config.title]?.trim() ||
@@ -375,17 +466,22 @@ export class UMController {
 				await transactionalEntityManager.save(list)
 			})
 
-			return new ResponseDto()
+			return new ResponseDto({ data: { success: true } })
 		} catch (error) {
 			console.error(error)
 			return new ResponseDto()
 		}
 	}
 
-	@Post('/import/template')
-	@UseGuards(AuthGuard)
-	async getImportTemplate() {
-		return new ResponseDto({ data: {} })
+	@Get('/import/template')
+	// @UseGuards(AuthGuard)
+	async getImportTemplate(@Res() res) {
+		// try {
+		// 	const filePath = path.join(process.cwd(), 'dist/file/template.csv')
+		// 	res.download(filePath, 'template.csv')
+		// } catch (error) {
+		// 	console.log('error', error)
+		// }
 	}
 
 	@Get('/img/:userId')
