@@ -49,7 +49,24 @@ export class AuthController {
 	@Post('/login')
 	async login(@Body() body: LoginAuthDtoIn): Promise<ResponseDto<LoginAuthDtoOut>> {
 		const { email, password } = body
-		const user = await this.userEntity.findOne({ where: { email, isDeleted: false, isActive: true } })
+		// const user = await this.userEntity.findOne({ where: { email, isDeleted: false, isActive: true } })
+		const user = await this.userEntity
+			.createQueryBuilder('users')
+			.select([
+				'users.userId',
+				'users.firstName',
+				'users.lastName',
+				'users.email',
+				'users.phone',
+				'users.isActive',
+				'users.password',
+			])
+			.leftJoinAndSelect('users.role', 'role')
+			.leftJoinAndSelect('users.position', 'position')
+			.leftJoinAndSelect('users.region', 'region')
+			.where({ email: email, isDeleted: false, isActive: true })
+			.getOne()
+
 		if (!user) {
 			throw new UnauthorizedException(errorResponse.INCORRECT_CREDENTIALS)
 		}
@@ -66,9 +83,13 @@ export class AuthController {
 		const refreshToken = jwt.sign(paylod, process.env.JWT_SECRET_REFRESH, {
 			expiresIn: this.refreshTokenExpried,
 		})
-
+		const userOut = {
+			...user,
+			password: undefined,
+			userId: undefined,
+		}
 		return new ResponseDto({
-			data: { id: user.userId, accessToken, refreshToken },
+			data: { id: user.userId, accessToken, refreshToken, ...userOut },
 		})
 	}
 

@@ -1,29 +1,97 @@
+//- doctype html
+//- html
+//-   head
+//-     meta(charset='UTF-8')
+//-     title เข้าสู่ระบบครั้งแรก
+//-   body
+//-     h2 ท่านได้รับสิทธิการเข้าใช้งานภายในระบบ OCSB
+
+//-     p
+//-       strong เรียน
+//-       |  #{name}
+
+//-     p ท่านได้รับสิทธิการเข้าใช้งานภายในระบบ OCSB
+//-       br
+//-       | โปรดดำเนินการเข้าสู่ระบบ 
+//-       a(href=loginUrl) ได้ที่นี่
+
+//-     p 
+//-       strong รายละเอียดบัญชีสำหรับเข้าใช้งาน
+//-       br
+//-       | อีเมล : #{username}
+//-       br 
+//-       | รหัสผ่าน : #{password}
+
+//-     //- p หากมีข้อสงสัยในการเข้าใช้งานระบบ กรุณาติดต่อฝ่ายเทคโนโลยีสารสนเทศ การรถไฟแห่งประเทศไทย
+
+//-     p ขอแสดงความนับถือ
+//-       br
+//-       | OCSB
+
 doctype html
 html
   head
-    meta(charset='UTF-8')
-    title เข้าสู่ระบบครั้งแรก
+    title Reset password
+    style.
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f4f4f4;
+      }
+      .container {
+        width: 500px;
+        padding: 20px;
+        background: white;
+        text-align: center;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+      }
+      .header {
+        background: #003399;
+        color: white;
+        padding: 15px;
+        font-size: 20px;
+        font-weight: bold;
+      }
+      .content {
+        background: #fff3d9;
+        padding: 20px;
+        font-size: 16px;
+      }
+      .button {
+        display: inline-block;
+        background: #0044cc;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        margin-top: 10px;
+      }
+      .footer {
+        font-size: 14px;
+        margin-top: 20px;
+      }
+      .logo {
+        text-align: right;
+        margin-top: 10px;
+      }
+      .logo img {
+        width: 80px;
+      }
+
   body
-    h2 ท่านได้รับสิทธิการเข้าใช้งานภายในระบบ OCSB
+    .container
+      .header Sugarcane Monitoring Platform
+      .content
+        p Your username is 
+          strong #{username}
+        p and temporary password is 
+          strong #{password}
+        a.button(href=loginUrl style="display:inline-block; background:#0044cc; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;") Login
+        .footer Please change your password after first login.
+      .logo
+        img(src="https://upload.wikimedia.org/wikipedia/commons/f/fe/NewLogo_thaicom.png", alt="Thaicom Logo")
 
-    p
-      strong เรียน
-      |  #{name}
-
-    p ท่านได้รับสิทธิการเข้าใช้งานภายในระบบ OCSB
-      br
-      | โปรดดำเนินการเข้าสู่ระบบ 
-      a(href=loginUrl) ได้ที่นี่
-
-    p 
-      strong รายละเอียดบัญชีสำหรับเข้าใช้งาน
-      br
-      | อีเมล : #{username}
-      br 
-      | รหัสผ่าน : #{password}
-
-    //- p หากมีข้อสงสัยในการเข้าใช้งานระบบ กรุณาติดต่อฝ่ายเทคโนโลยีสารสนเทศ การรถไฟแห่งประเทศไทย
-
-    p ขอแสดงความนับถือ
-      br
-      | OCSB
