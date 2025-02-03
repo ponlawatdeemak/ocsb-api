@@ -15,39 +15,46 @@ import {
 	Query,
 	UploadedFile,
 	UseInterceptors,
+	Res,
 } from '@nestjs/common'
+import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
 import { AuthGuard } from 'src/core/auth.guard'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
-import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
 import { Repository, EntityManager, In } from 'typeorm'
 import { errorResponse } from '@interface/config/error.config'
 import {
+	DeleteImageUserDtoOut,
 	DeleteUserDtoOut,
 	GetUserDtoOut,
+	PostImageUserDtoOut,
 	PostUserDtoOut,
 	PostValidateCsvUMDtoOut,
 	PutUserDtoOut,
 	SearchUserDtoOut,
 } from '@interface/dto/um/um.dto-out'
 import {
+	DeleteImageUserDtoIn,
 	DeleteUserDtoIn,
+	GetImageUserDtoIn,
 	GetUserDtoIn,
+	PostImageUserDtoIn,
 	PostUserDtoIn,
 	PutUserDtoIn,
 	SearchUserDtoIn,
 } from '@interface/dto/um/um.dto.in'
 import { User } from 'src/core/user.decorator'
 import { UserMeta } from '@interface/auth.type'
-import { hashPassword } from 'src/core/utils'
+import { hashPassword, validatePayload } from 'src/core/utils'
 import { RandomService } from 'src/core/random.service'
 import { FileInterceptor } from '@nestjs/platform-express'
 import * as XLSX from 'xlsx'
 import { importUserTemplate, ImportValidatorType } from '@interface/config/um.config'
-
+import { MailService } from 'src/core/mail.service'
 @Controller('um')
 export class UMController {
 	constructor(
 		private readonly randomService: RandomService,
+		private readonly mailService: MailService,
 
 		@InjectEntityManager()
 		private readonly entityManager: EntityManager,
@@ -71,7 +78,6 @@ export class UMController {
 	@Get('/search')
 	@UseGuards(AuthGuard)
 	async search(@Query() query: SearchUserDtoIn): Promise<ResponseDto<SearchUserDtoOut[]>> {
-		// return new ResponseDto({ data: [] })
 		const queryBuilder = this.userEntity
 			.createQueryBuilder('users')
 			.select([
@@ -82,43 +88,60 @@ export class UMController {
 				'users.phone',
 				'users.isActive',
 			])
+			.addSelect("CONCAT(users.firstName, ' ', users.lastName)", 'fullname')
 			.leftJoinAndSelect('users.role', 'role')
 			.leftJoinAndSelect('users.position', 'position')
 			.leftJoinAndSelect('users.region', 'region')
 		if (query.keyword) {
-			queryBuilder.andWhere(
-				`(users.firstName ILIKE :keyword OR users.lastName ILIKE :keyword OR users.phone ILIKE :keyword OR users.email ILIKE :keyword)`,
-				{ keyword: `%${query.keyword}%` },
+			const keywords = query.keyword.trim().split(/\s+/)
+			const conditions = keywords
+				.map(
+					(_, index) => `
+				users.first_name ILIKE :keyword${index} 
+				OR users.last_name ILIKE :keyword${index} 
+				OR users.phone ILIKE :keyword${index} 
+				OR users.email ILIKE :keyword${index}
+			`,
+				)
+				.join(' OR ')
+
+			const params = keywords.reduce(
+				(acc, word, index) => {
+					acc[`keyword${index}`] = `%${word}%`
+					return acc
+				},
+				{} as Record<string, string>,
 			)
+
+			queryBuilder.andWhere(`(${conditions})`, params)
 		}
 		if (query.position) {
-			const positionIdsArray = Array.isArray(query.position) ? query.position : [query.position]
 			queryBuilder.andWhere('position.positionId IN (:...positionIds)', {
-				positionIds: positionIdsArray,
+				positionIds: validatePayload(query.position),
 			})
 		}
 		if (query.region) {
-			const regionIdsArray = Array.isArray(query.region) ? query.region : [query.region]
 			queryBuilder.andWhere('region.regionId IN (:...regionIds)', {
-				regionIds: regionIdsArray,
+				regionIds: validatePayload(query.region),
 			})
 		}
 		if (query.role) {
-			const roleIdsArray = Array.isArray(query.role) ? query.role : [query.role]
 			queryBuilder.andWhere('role.roleId IN (:...roleIds)', {
-				roleIds: roleIdsArray,
+				roleIds: validatePayload(query.role),
 			})
 		}
-		console.log('query', query)
-		queryBuilder.skip((Number(query.page) - 1) * Number(query.limit)).take(Number(query.limit))
-		if (query.orderBy || query.order) {
-			const relacolumns = ['region', 'position', 'role']
-			const relations = relacolumns.find((item) => query.orderBy.includes(item))
-			queryBuilder.orderBy(`${relations ? query.orderBy : `users.${query.orderBy}`}`, query.order)
+		if (query.orderBy && query.order) {
+			if (query.orderBy === 'user_fullname') {
+				queryBuilder.orderBy("CONCAT(users.firstName, ' ', users.lastName)", query.order)
+			} else {
+				queryBuilder.orderBy(query.orderBy, query.order)
+			}
 		}
+		if (query.page && query.limit) {
+			queryBuilder.offset((Number(query.page) - 1) * Number(query.limit)).limit(Number(query.limit))
+		}
+		const [data, total] = await Promise.all([queryBuilder.getRawMany(), queryBuilder.getCount()])
 
-		const [data, total] = await queryBuilder.getManyAndCount()
-		console.log('query', query)
 		return new ResponseDto({ data: data, total: total })
 	}
 
@@ -147,7 +170,7 @@ export class UMController {
 				await transactionalEntityManager.save(newUser)
 			}
 
-			// await this.mailService.sendUserAccountCreated(payload.email, payload.name, newPassword)
+			await this.mailService.sendUserAccountCreated(payload.email, payload.firstName, newPassword)
 		})
 
 		return new ResponseDto({ data: { id: newUserId } })
@@ -363,5 +386,76 @@ export class UMController {
 	@UseGuards(AuthGuard)
 	async getImportTemplate() {
 		return new ResponseDto({ data: {} })
+	}
+
+	@Get('/img/:userId')
+	// @UseGuards(AuthGuard)
+	async getImage(@Request() req, @Res() res) {
+		const params: GetImageUserDtoIn = req.params
+		const existingUser = await this.userEntity.findOne({
+			where: { userId: params.userId, isDeleted: false },
+		})
+		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
+		if (!existingUser.img) {
+			throw new BadRequestException(errorResponse.USER_IMG_NOT_FOUND)
+		}
+		res.setHeader('Content-Type', 'image/png')
+		const imageBuffer = Buffer.from(existingUser.img, 'base64')
+		return res.send(imageBuffer)
+	}
+
+	@Post('/img/:userId')
+	@UseGuards(AuthGuard)
+	@UseInterceptors(FileInterceptor('file'))
+	async postImage(
+		@UploadedFile() file: Express.Multer.File,
+		@Request() req,
+		@User() user: UserMeta,
+	): Promise<ResponseDto<PostImageUserDtoOut>> {
+		const params: PostImageUserDtoIn = req.params
+		if (!file) {
+			throw new BadRequestException(errorResponse.NO_FILE_UPLOAD)
+		}
+		const base64Image = file.buffer.toString('base64')
+		const existingUser = await this.userEntity.findOne({
+			where: { userId: params.userId, isDeleted: false },
+		})
+		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
+		await this.entityManager.transaction(async (transactionalEntityManager) => {
+			existingUser.img = base64Image
+			existingUser.updatedBy = { userId: user.id }
+			existingUser.updatedAt = new Date()
+			await transactionalEntityManager.save(existingUser)
+		})
+		return new ResponseDto({
+			data: {
+				id: params.userId,
+			},
+		})
+	}
+
+	@Delete('/img/:userId')
+	@UseGuards(AuthGuard)
+	async deleteImage(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteImageUserDtoOut>> {
+		const params: DeleteImageUserDtoIn = req.params
+		const existingUser = await this.userEntity.findOne({
+			where: { userId: params.userId, isDeleted: false },
+		})
+		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
+		if (!existingUser.img) {
+			throw new BadRequestException(errorResponse.USER_IMG_NOT_FOUND)
+		}
+		await this.entityManager.transaction(async (transactionalEntityManager) => {
+			existingUser.img = null
+			existingUser.updatedBy = { userId: user.id }
+			existingUser.updatedAt = new Date()
+			await transactionalEntityManager.save(existingUser)
+		})
+
+		return new ResponseDto({
+			data: {
+				id: user.id,
+			},
+		})
 	}
 }
