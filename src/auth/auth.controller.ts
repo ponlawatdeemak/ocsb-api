@@ -133,7 +133,7 @@ export class AuthController {
 
 		// genereate token and link
 		const resetToken = generateTokenHex(16)
-		const resetLink = `${RESET_PASSWORD_FRONTEND_URL}${resetToken}`
+		const resetLink = `${RESET_PASSWORD_FRONTEND_URL}?token=${resetToken}`
 
 		const now = new Date()
 
