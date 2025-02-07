@@ -9,12 +9,14 @@ import {
 	GetBurntOverviewDtoIn,
 	GetHeatPointsOverviewDtoIn,
 	GetHeatPointsSugarcaneOverviewDtoIn,
+	GetPlantOverviewDtoIn,
 	GetSummaryOverviewDtoIn,
 } from '@interface/dto/overview/overview.dto-in'
 import {
 	GetBurntOverviewDtoOut,
 	GetHeatPointsOverviewDtoOut,
 	GetHeatPointsSugarcaneOverviewDtoOut,
+	GetPlantOverviewDtoOut,
 	GetSummaryOverviewDtoOut,
 } from '@interface/dto/overview/overview.dto-out'
 import { YearProductionEntity } from '@interface/entities'
@@ -219,5 +221,90 @@ export class OverviewController {
 		})
 
 		return new ResponseDto<GetBurntOverviewDtoOut[]>({ data })
+	}
+
+	@Get('plant')
+	@UseGuards(AuthGuard)
+	async getPlant(@Query() payload: GetPlantOverviewDtoIn): Promise<ResponseDto<GetPlantOverviewDtoOut>> {
+		// year condition row
+		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
+
+		const queryResult = await this.dataSource.query(
+			`WITH total_area AS ( -- Table Temp ไว้หาค่าพื้นที่ทั้งหมดของแต่ละหน่วย
+					SELECT 
+						SUM(sdyp2.area_m2) AS m2, -- พื้นที่ทั้งหมดหน่วยตารางเมตร
+						SUM(sdyp2.area_rai) AS rai, -- พื้นที่ทั้งหมดหน่วยไร่
+						SUM(sdyp2.area_km2) AS km2, -- พื้นที่ทั้งหมดหน่วยตารางกิโลเมตร
+						SUM(sdyp2.area_hexa) AS hexa  -- พื้นที่ทั้งหมดหน่วย Hexa
+					FROM sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp2 -- Table sugarcane_ds_yield_pred
+					JOIN sugarcane.sugarcane.year_production yp -- Join กับ Table lookup เพื่อเอา Data ปีและรอบ
+						ON yp.id = sdyp2.id -- id จาก query param
+					WHERE sdyp2.cls_round = yp.sugarcane_round -- Where ด้วยรอบและปีตาม Lookup
+					AND DATE(sdyp2.cls_edate) BETWEEN TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD')
+					AND TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD')
+				)
+				SELECT 
+					r.region_id, -- Dto Out : regionId
+					ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, -- Dto Out : provinces
+					COALESCE(SUM(sdyp.area_m2), 0) AS m2, -- Dto Out : m2
+					COALESCE(SUM(sdyp.area_rai), 0) AS rai, -- Dto Out : rai
+					COALESCE(SUM(sdyp.area_km2), 0) AS km2, -- Dto Out : km2
+					COALESCE(SUM(sdyp.area_hexa), 0) AS hexa, -- Dto Out : hexa
+					ROUND(COALESCE(SUM(sdyp.area_m2), 0) / ta.m2 * 100, 2) AS m2_percent, -- Dto Out : m2Percent
+					ROUND(COALESCE(SUM(sdyp.area_rai), 0) / ta.rai * 100, 2) AS rai_percent, -- Dto Out : raiPercent
+					ROUND(COALESCE(SUM(sdyp.area_km2), 0) / ta.km2 * 100, 2) AS km2_percent, -- Dto Out : km2Percent
+					ROUND(COALESCE(SUM(sdyp.area_hexa), 0) / ta.hexa * 100, 2) AS hexa_percent -- Dto Out : hexaPercent
+				FROM sugarcane.sugarcane.regions r -- เริ่มจาก Regions เพื่อนำไปหา พื้นที่ของแต่ละภูมิภาคที่มี
+				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp -- ไป join กับ Table ที่มีข้อมูลพื้นที่ด้วย region_id
+					ON sdyp.region_id = r.region_id
+					AND sdyp.cls_round = $1
+					AND DATE(sdyp.cls_edate) BETWEEN (
+						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
+						FROM sugarcane.sugarcane.year_production yp 
+						WHERE yp.id = $2 -- id จาก query param
+					) AND (
+						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD') 
+						FROM sugarcane.sugarcane.year_production yp 
+						WHERE yp.id = $2 -- id จาก query param
+					)
+				LEFT JOIN sugarcane.sugarcane.provinces p -- join กับ Table ที่มีข้อมูลของจังหวัดแต่ละภาค
+					ON p.region_id = r.region_id
+				LEFT JOIN total_area ta ON true  -- join กับ total_area เพื่อนำคำนวณพื้นที่ทั้งหมดด้านบนมาใช้
+				GROUP BY r.region_id, ta.rai, ta.m2, ta.km2, ta.hexa
+				ORDER BY r.region_id;
+			`,
+			[yearLookupCondition.sugarcaneRound, yearLookupCondition.id],
+		)
+
+		// transform result
+
+		const totalArea = queryResult.reduce(
+			(acc, obj) => {
+				acc.m2 += Number(obj.m2) || 0
+				acc.km2 += Number(obj.km2) || 0
+				acc.rai += Number(obj.rai) || 0
+				acc.hexa += Number(obj.hexa) || 0
+				return acc
+			},
+			{ m2: 0, km2: 0, rai: 0, hexa: 0 },
+		)
+
+		const regionArea = queryResult.map((e) => {
+			return {
+				regionId: e.region_id,
+				provinces: e.provinces,
+				m2: Number(e.m2),
+				km2: Number(e.km2),
+				rai: Number(e.rai),
+				hexa: Number(e.hexa),
+
+				m2Percent: Number(e.m2_percent),
+				km2Percent: Number(e.km2_percent),
+				raiPercent: Number(e.rai_percent),
+				hexaPercent: Number(e.hexa_percent),
+			}
+		})
+
+		return new ResponseDto<GetPlantOverviewDtoOut>({ data: { totalArea, regionArea } })
 	}
 }
