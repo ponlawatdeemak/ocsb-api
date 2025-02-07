@@ -11,6 +11,7 @@ import {
 	GetHeatPointsSugarcaneOverviewDtoIn,
 	GetPlantOverviewDtoIn,
 	GetProductOverviewDtoIn,
+	GetProductPredictOverviewDtoIn,
 	GetSummaryOverviewDtoIn,
 } from '@interface/dto/overview/overview.dto-in'
 import {
@@ -19,6 +20,7 @@ import {
 	GetHeatPointsSugarcaneOverviewDtoOut,
 	GetPlantOverviewDtoOut,
 	GetProductOverviewDtoOut,
+	GetProductPredictOverviewDtoOut,
 	GetSummaryOverviewDtoOut,
 } from '@interface/dto/overview/overview.dto-out'
 import { YearProductionEntity } from '@interface/entities'
@@ -371,5 +373,70 @@ export class OverviewController {
 		})
 
 		return new ResponseDto<GetProductOverviewDtoOut[]>({ data })
+	}
+
+	@Get('product-predict')
+	@UseGuards(AuthGuard)
+	async getProductPredict(
+		@Query() payload: GetProductPredictOverviewDtoIn,
+	): Promise<ResponseDto<GetProductPredictOverviewDtoOut[]>> {
+		// year condition row
+		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
+
+		const queryResult = await this.dataSource.query(
+			`WITH last_4_years AS ( -- สร้าง Table Temp สำหรับ Get ปีย้อนหลัง 4 ปี
+				SELECT * 
+				FROM sugarcane.sugarcane.year_production
+				WHERE id <= $1 -- id จาก query param
+				ORDER BY id DESC
+				LIMIT 4 -- ย้อนหลัง 4 
+			)
+			SELECT 
+				yp.id as year_id, -- id ของ ปี
+				yp.name as year_name, -- ชื่อของปีภาษาไทย
+				yp.name_en as year_name_en, -- ชื่อของปีภาษาอังกฤษ
+				r.region_id, -- id ภูมิภาค
+				r.region_name, -- ชื่อของภูมิภาษาไทย
+				r.region_name_en, -- ชื่อของภูมิภาษาอังกฤษ
+				COALESCE(SUM(sdyp.production_kg), 0) as production_kg, -- ผลรวมของอ้อยหน่วยเป็นกิโลกรัม รวมกันตาม ปีและภายในภูมิภาคนั้นๆ 
+				COALESCE(SUM(sdyp.production_ton), 0) as production_ton -- ผลรวมของอ้อยหน่วยเป็นตัน รวมกันตาม ปีและภายในภูมิภาคนั้นๆ 
+			FROM last_4_years yp -- Table temp 
+			CROSS JOIN sugarcane.sugarcane.regions r -- join กับ ภูมิภาคเพื่อเอาภาคทั้งหมด
+			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp -- ่join กับ table ที่มี data ของอ้อย
+				ON sdyp.region_id = r.region_id -- เงื่อนไขคือ ภูมิภาคเดียวกัน รอบเดียวกัน ช่วงปีเท่ากัน
+				AND sdyp.cls_round = yp.sugarcane_round 
+				AND DATE(sdyp.cls_edate) 
+					BETWEEN TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
+					AND TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD') 
+			GROUP BY yp.id, yp.name, r.region_id, yp.name_en, sdyp.cls_edate
+			ORDER BY yp.id ASC, r.region_id; 
+			`,
+			[payload.id],
+		)
+
+		// transform data
+		let data = []
+		for (const item of queryResult) {
+			let g = data.find((e) => e.yearId === item.year_id)
+			if (!g) {
+				// create group
+				g = { yearId: item.year_id, yearName: item.year_name, yearNameEn: item.year_name_en }
+				g.regions = []
+				data.push(g)
+			}
+
+			// create region
+			const region = {
+				regionId: item.region_id,
+				regionName: item.region_name,
+				regionNameEn: item.region_name_en,
+				kg: Number(item.production_kg),
+				ton: Number(item.production_ton),
+			}
+
+			g.regions.push(region)
+		}
+
+		return new ResponseDto<GetProductPredictOverviewDtoOut[]>({ data })
 	}
 }
