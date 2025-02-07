@@ -10,6 +10,7 @@ import {
 	GetHeatPointsOverviewDtoIn,
 	GetHeatPointsSugarcaneOverviewDtoIn,
 	GetPlantOverviewDtoIn,
+	GetProductOverviewDtoIn,
 	GetSummaryOverviewDtoIn,
 } from '@interface/dto/overview/overview.dto-in'
 import {
@@ -17,6 +18,7 @@ import {
 	GetHeatPointsOverviewDtoOut,
 	GetHeatPointsSugarcaneOverviewDtoOut,
 	GetPlantOverviewDtoOut,
+	GetProductOverviewDtoOut,
 	GetSummaryOverviewDtoOut,
 } from '@interface/dto/overview/overview.dto-out'
 import { YearProductionEntity } from '@interface/entities'
@@ -306,5 +308,68 @@ export class OverviewController {
 		})
 
 		return new ResponseDto<GetPlantOverviewDtoOut>({ data: { totalArea, regionArea } })
+	}
+
+	@Get('product')
+	@UseGuards(AuthGuard)
+	async getProduct(@Query() payload: GetProductOverviewDtoIn): Promise<ResponseDto<GetProductOverviewDtoOut[]>> {
+		// year condition row
+		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
+
+		const queryResult = await this.dataSource.query(
+			`select r.region_id, -- Dto Out : regionId
+				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, -- Dto Out : provinces
+				-- ตั้งชื่อ Dto Out ประมาณนี้เพื่อให้ FE เอา Config ต่อกันเป็น string ได้
+				SUM(sdyp.yield_mean_kg_m2) as yield_mean_kg_m2, -- Dto Out : kg_m2
+				SUM(sdyp.yield_mean_kg_km2) as yield_mean_kg_km2, -- Dto Out : kg_km2
+				SUM(sdyp.yield_mean_kg_rai) as yield_mean_kg_rai, -- Dto Out : kg_rai
+				SUM(sdyp.yield_mean_kg_hexa) as yield_mean_kg_hexa, -- Dto Out : kg_hexa
+				SUM(sdyp.yield_mean_ton_m2) as yield_mean_ton_m2, -- Dto Out : ton_m2
+				SUM(sdyp.yield_mean_ton_km2) as yield_mean_ton_km2, -- Dto Out : ton_km2
+				SUM(sdyp.yield_mean_ton_rai) as yield_mean_ton_rai, -- Dto Out : ton_rai
+				SUM(sdyp.yield_mean_ton_hexa) as yield_mean_ton_hexa -- Dto Out : ton_hexa
+				FROM sugarcane.sugarcane.regions r -- เริ่มจาก Table region เพื่อให้ตั้งต้นตามภูมิภาค
+				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp -- join กับ Table ที่มีข้อมูลพื้นที่ด้วย region_id
+					ON sdyp.region_id = r.region_id
+					AND sdyp.cls_round = ( -- เพิ่มเงื่อนไขเอาเฉพาะ Data ที่อยู่ใน Period โดยอ้างอิงจาก Lookup Table 
+						SELECT yp.sugarcane_round 
+						FROM sugarcane.sugarcane.year_production yp 
+						WHERE yp.id = $1 -- id จาก query param
+					)
+					AND DATE(sdyp.cls_edate) BETWEEN (
+						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
+						FROM sugarcane.sugarcane.year_production yp 
+						WHERE yp.id = $1 -- id จาก query param
+					) AND (
+						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD') 
+						FROM sugarcane.sugarcane.year_production yp 
+						WHERE yp.id = $1 -- id จาก query param
+					)
+				LEFT JOIN sugarcane.sugarcane.provinces p -- join กับ Table ที่มีข้อมูลของจังหวัดแต่ละภาค
+					ON p.region_id = r.region_id
+				group by r.region_id 
+				order by r.region_id ; 
+			`,
+			[payload.id],
+		)
+
+		// transform data
+		const data = queryResult.map((e) => {
+			return {
+				regionId: e.region_id,
+				provinces: e.provinces,
+				kg_m2: Number(e.yield_mean_kg_m2),
+				kg_km2: Number(e.yield_mean_kg_km2),
+				kg_rai: Number(e.yield_mean_kg_rai),
+				kg_hexa: Number(e.yield_mean_kg_hexa),
+
+				ton_m2: Number(e.yield_mean_ton_m2),
+				ton_km2: Number(e.yield_mean_ton_km2),
+				ton_rai: Number(e.yield_mean_ton_rai),
+				ton_hexa: Number(e.yield_mean_ton_hexa),
+			}
+		})
+
+		return new ResponseDto<GetProductOverviewDtoOut[]>({ data })
 	}
 }
