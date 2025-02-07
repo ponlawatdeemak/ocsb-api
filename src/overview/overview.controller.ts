@@ -315,9 +315,6 @@ export class OverviewController {
 	@Get('product')
 	@UseGuards(AuthGuard)
 	async getProduct(@Query() payload: GetProductOverviewDtoIn): Promise<ResponseDto<GetProductOverviewDtoOut[]>> {
-		// year condition row
-		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
-
 		const queryResult = await this.dataSource.query(
 			`select r.region_id, -- Dto Out : regionId
 				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, -- Dto Out : provinces
@@ -380,9 +377,6 @@ export class OverviewController {
 	async getProductPredict(
 		@Query() payload: GetProductPredictOverviewDtoIn,
 	): Promise<ResponseDto<GetProductPredictOverviewDtoOut[]>> {
-		// year condition row
-		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
-
 		const queryResult = await this.dataSource.query(
 			`WITH last_4_years AS ( -- สร้าง Table Temp สำหรับ Get ปีย้อนหลัง 4 ปี
 				SELECT * 
@@ -435,6 +429,95 @@ export class OverviewController {
 			}
 
 			g.regions.push(region)
+		}
+
+		return new ResponseDto<GetProductPredictOverviewDtoOut[]>({ data })
+	}
+
+	@Get('replant')
+	@UseGuards(AuthGuard)
+	async getReplant(
+		@Query() payload: GetProductPredictOverviewDtoIn,
+	): Promise<ResponseDto<GetProductPredictOverviewDtoOut[]>> {
+		const queryResult = await this.dataSource.query(
+			`WITH last_3_years AS ( -- สร้าง Table Temp สำหรับ Get ปีย้อนหลัง 3 ปี
+				SELECT * 
+				FROM sugarcane.sugarcane.year_production
+				WHERE id <= $1 -- id จาก query param
+				ORDER BY id DESC
+				LIMIT 3 -- ย้อนหลัง 3 
+			), 
+			repeat_area AS ( -- สร้าง Table Temp สำหรับ Get ข้อมูลการปลูกอ้อยซ้ำของแต่ละภูมิภาค
+				SELECT 
+					region_id,
+					cls_round,
+					cls_edate,
+					SUM(area_m2) as area_m2,
+					SUM(area_km2) as area_km2,
+					SUM(area_rai) as area_rai,
+					SUM(area_hexa) as area_hexa
+				FROM sugarcane.sugarcane.sugarcane_ds_repeat_area 
+				WHERE repeat = 3 -- การปลูกซ้ำ = 3
+				GROUP BY region_id, cls_round, cls_edate
+			)
+			SELECT 
+				yp.id AS year_id, -- id ของปี
+				yp.name AS year_name, -- ชื่อของปีภาษาไทย
+				yp.name_en AS year_name_en, -- ชื่อของปีภาษาอังกฤษ
+				r.region_id, -- id ของภูมิภาค
+				r.region_name, -- ชื่อของภูมิภาคภาษาไทย
+				r.region_name_en, -- ชื่อของภูมิภาคภาษาอังกฤษ
+				COALESCE(100 * ra.area_m2 / NULLIF(SUM(sdra.area_m2), 0), 0) AS m2, -- คำนวนเปอเซ็นของตารางเมตร
+				COALESCE(100 * ra.area_km2 / NULLIF(SUM(sdra.area_km2), 0), 0) AS km2, -- คำนวนเปอเซ็นของตารางกิโลเมตร
+				COALESCE(100 * ra.area_rai / NULLIF(SUM(sdra.area_rai), 0), 0) AS rai, -- คำนวนเปอเซ็นของไร่
+				COALESCE(100 * ra.area_hexa / NULLIF(SUM(sdra.area_hexa), 0), 0) AS hexa -- คำนวนเปอเซ็นของ Hexa
+			FROM last_3_years yp -- Table temp
+			CROSS JOIN sugarcane.sugarcane.regions r  -- join กับ ภูมิภาคเพื่อเอาภาคทั้งหมด
+			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_repeat_area sdra -- ่join กับ table ที่มี data ของพื้นที่
+				ON sdra.region_id = r.region_id  -- เงื่อนไขคือ ภูมิภาคเดียวกัน รอบเดียวกัน ช่วงปีเท่ากัน
+				AND sdra.cls_round = yp.sugarcane_round 
+				AND sdra.cls_edate BETWEEN 
+					TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
+					AND TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD')
+			LEFT JOIN repeat_area ra  -- ่join กับ table temp ที่มี data ของพื้นที่การปลูกซ้ำ
+				ON ra.region_id = r.region_id -- เงื่อนไขคือ ภูมิภาคเดียวกัน รอบเดียวกัน ช่วงปีเท่ากัน
+				AND ra.cls_round = yp.sugarcane_round 
+				AND ra.cls_edate BETWEEN 
+					TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
+					AND TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD')
+			GROUP BY yp.id, yp.name, yp.name_en, r.region_id, ra.area_m2, ra.area_km2 ,ra.area_rai,ra.area_hexa
+			ORDER BY yp.id ASC, r.region_id; 
+			`,
+			[payload.id],
+		)
+
+		// transform data
+		let data = []
+		for (const item of queryResult) {
+			let g = data.find((e) => e.regionId === item.region_id)
+			if (!g) {
+				// create group
+				g = {
+					regionId: item.region_id,
+					regionName: item.region_name,
+					regionNameEn: item.region_name_en,
+				}
+				g.years = []
+				data.push(g)
+			}
+
+			// create region
+			const year = {
+				yearId: item.year_id,
+				yearName: item.year_name,
+				yearNameEn: item.year_name_en,
+				m2: Number(item.m2),
+				km2: Number(item.km2),
+				rai: Number(item.rai),
+				hexa: Number(item.hexa),
+			}
+
+			g.years.push(year)
 		}
 
 		return new ResponseDto<GetProductPredictOverviewDtoOut[]>({ data })
