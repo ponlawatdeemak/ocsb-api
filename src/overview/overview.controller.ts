@@ -10,6 +10,8 @@ import { GetSummaryOverviewDtoOut } from '@interface/dto/overview/overview.dto-o
 import { YearProductionEntity } from '@interface/entities'
 import { SugarcaneHotspotEntity } from '@interface/entities/sugarcane-hotspot.entity'
 import { AuthGuard } from 'src/core/auth.guard'
+import { GetHeatPointsOverviewDtoIn } from '@interface/dto/heat-points/heat-points.dto-in'
+import { GetHeatPointsOverviewDtoOut } from '@interface/dto/heat-points/heat-points.dto-out'
 @Controller('overview')
 export class OverviewController {
 	constructor(
@@ -85,6 +87,43 @@ export class OverviewController {
 			},
 		}
 
-		return new ResponseDto({ data })
+		return new ResponseDto<GetSummaryOverviewDtoOut>({ data })
+	}
+
+	@Get('heat-points')
+	@UseGuards(AuthGuard)
+	async getHeatPoints(
+		@Query() payload: GetHeatPointsOverviewDtoIn,
+	): Promise<ResponseDto<GetHeatPointsOverviewDtoOut>> {
+		// year condition row
+		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
+
+		const queryResult = await this.dataSource.query(
+			`with filtered_data as (
+					select * from sugarcane.sugarcane.sugarcane_hotspot
+					where acq_date between $1 and $2
+				),count_filtered_hotspot as(
+					select count(*) from filtered_data
+				)
+				select 
+					region_id,
+					count(*) region_count,
+					round((count(*)*100.0)/(select * from count_filtered_hotspot),2) region_hotspot
+				from filtered_data group by region_id order by region_id 
+			`,
+			[yearLookupCondition.hotspotStart, yearLookupCondition.hotspotEnd],
+		)
+
+		// transform data
+		const data = queryResult.map((e) => {
+			return {
+				regionId: e.region_id,
+				regionCount: Number(e.region_count),
+				regionHotspot: Number(e.region_hotspot),
+			}
+		})
+
+		// year condition row
+		return new ResponseDto<GetHeatPointsOverviewDtoOut>({ data })
 	}
 }
