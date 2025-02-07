@@ -6,11 +6,13 @@ import { snakeCase } from 'change-case'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Repository, Between } from 'typeorm'
 import {
+	GetBurntOverviewDtoIn,
 	GetHeatPointsOverviewDtoIn,
 	GetHeatPointsSugarcaneOverviewDtoIn,
 	GetSummaryOverviewDtoIn,
 } from '@interface/dto/overview/overview.dto-in'
 import {
+	GetBurntOverviewDtoOut,
 	GetHeatPointsOverviewDtoOut,
 	GetHeatPointsSugarcaneOverviewDtoOut,
 	GetSummaryOverviewDtoOut,
@@ -100,7 +102,7 @@ export class OverviewController {
 	@UseGuards(AuthGuard)
 	async getHeatPoints(
 		@Query() payload: GetHeatPointsOverviewDtoIn,
-	): Promise<ResponseDto<GetHeatPointsOverviewDtoOut>> {
+	): Promise<ResponseDto<GetHeatPointsOverviewDtoOut[]>> {
 		// year condition row
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 
@@ -129,14 +131,14 @@ export class OverviewController {
 			}
 		})
 
-		return new ResponseDto<GetHeatPointsOverviewDtoOut>({ data })
+		return new ResponseDto<GetHeatPointsOverviewDtoOut[]>({ data })
 	}
 
 	@Get('heat-points-sugarcane')
 	@UseGuards(AuthGuard)
 	async getHeatPointsSugarcane(
 		@Query() payload: GetHeatPointsSugarcaneOverviewDtoIn,
-	): Promise<ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut>> {
+	): Promise<ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut[]>> {
 		// year condition row
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 
@@ -166,6 +168,56 @@ export class OverviewController {
 			}
 		})
 
-		return new ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut>({ data })
+		return new ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut[]>({ data })
+	}
+
+	@Get('burnt')
+	@UseGuards(AuthGuard)
+	async getBurnt(@Query() payload: GetBurntOverviewDtoIn): Promise<ResponseDto<GetBurntOverviewDtoOut[]>> {
+		const queryResult = await this.dataSource.query(
+			`WITH month_series AS (
+				-- สร้างช่วงเดือนทั้งหมดในช่วง burn_area_start - burn_area_end
+				SELECT generate_series(
+					(SELECT DATE_TRUNC('month', yp.burn_area_start) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), -- id จาก query param
+					(SELECT DATE_TRUNC('month', yp.burn_area_end) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), -- id จาก query param
+					'1 month'
+				)::date AS month
+			),
+			region_series AS (
+				-- ดึง region_id ทั้งหมดจาก Talbe lookup 
+				SELECT region_id 
+				FROM sugarcane.sugarcane.regions  -- Table regions
+			)
+			SELECT 
+				TO_CHAR(ms.month, 'YYYY-MM') AS month,  -- Dto Out : month
+				rs.region_id, -- Dto Out : regionId
+				SUM(sdba.area_m2) AS m2, -- Dto Out : m2
+				SUM(sdba.area_km2) AS km2, -- Dto Out : km2
+				SUM(sdba.area_rai) AS rai, -- Dto Out : rai
+				SUM(sdba.area_hexa) AS hexa -- Dto Out : hexa
+			FROM month_series ms -- สร้าง Table Temp เพื่อจำทำช่วงเดือนทั้งหมดของ Period
+			CROSS JOIN region_series rs  -- นำ Lookup region มา join เพื่อให้ทุก region_id มีทุกเดือน 
+			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_burn_area sdba -- Join ที่ Table sugarcane_ds_burn_area
+				ON DATE_TRUNC('month', sdba.detected_d) = ms.month -- ON ด้วย detected_d ที่แปลงเป็น DATE_TRUNC ให้ตรงกับ month_series ที่ทำมา
+				AND sdba.region_id = rs.region_id  -- และ region_id ของ sugarcane_ds_burn_area = region_series
+			GROUP BY ms.month, rs.region_id -- Group ด้วย month_series และ region_series
+			ORDER BY ms.month, rs.region_id; -- Group ด้วย ORDER และ ORDER
+			`,
+			[payload.id],
+		)
+
+		// transform data
+		const data = queryResult.map((e) => {
+			return {
+				month: e.month,
+				regionId: e.region_id,
+				m2: Number(e.m2),
+				km2: Number(e.km2),
+				rai: Number(e.rai),
+				hexa: Number(e.hexa),
+			}
+		})
+
+		return new ResponseDto<GetBurntOverviewDtoOut[]>({ data })
 	}
 }
