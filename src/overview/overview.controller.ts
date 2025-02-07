@@ -5,8 +5,16 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common'
 import { snakeCase } from 'change-case'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Repository, Between } from 'typeorm'
-import { GetHeatPointsOverviewDtoIn, GetSummaryOverviewDtoIn } from '@interface/dto/overview/overview.dto-in'
-import { GetHeatPointsOverviewDtoOut, GetSummaryOverviewDtoOut } from '@interface/dto/overview/overview.dto-out'
+import {
+	GetHeatPointsOverviewDtoIn,
+	GetHeatPointsSugarcaneOverviewDtoIn,
+	GetSummaryOverviewDtoIn,
+} from '@interface/dto/overview/overview.dto-in'
+import {
+	GetHeatPointsOverviewDtoOut,
+	GetHeatPointsSugarcaneOverviewDtoOut,
+	GetSummaryOverviewDtoOut,
+} from '@interface/dto/overview/overview.dto-out'
 import { YearProductionEntity } from '@interface/entities'
 import { SugarcaneHotspotEntity } from '@interface/entities/sugarcane-hotspot.entity'
 import { AuthGuard } from 'src/core/auth.guard'
@@ -127,23 +135,22 @@ export class OverviewController {
 	@Get('heat-points-sugarcane')
 	// @UseGuards(AuthGuard)
 	async getHeatPointsSugarcane(
-		@Query() payload: GetHeatPointsOverviewDtoIn,
-	): Promise<ResponseDto<GetHeatPointsOverviewDtoOut>> {
+		@Query() payload: GetHeatPointsSugarcaneOverviewDtoIn,
+	): Promise<ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut>> {
 		// year condition row
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 
 		const queryResult = await this.dataSource.query(
-			`with filtered_data as (
-					select * from sugarcane.sugarcane.sugarcane_hotspot
-					where acq_date between $1 and $2
-				),count_filtered_hotspot as(
-					select count(*) from filtered_data
-				)
-				select 
-					region_id,
-					count(*) region_count,
-					round((count(*)*100.0)/(select * from count_filtered_hotspot),2) region_hotspot
-				from filtered_data group by region_id order by region_id 
+			`SELECT 
+					sh.region_id, -- Dto Out : regionId
+					COUNT(*) AS region_count, -- Dto Out : regionCount
+					COUNT(CASE WHEN sh.in_sugarcane = true THEN 1 END) AS in_sugarcane, -- Dto Out : inSugarcan
+					COUNT(CASE WHEN sh.in_sugarcane = false THEN 1 END) AS not_in_sugarcane -- Dto Out : notInSugarcan
+				FROM sugarcane.sugarcane.sugarcane_hotspot sh -- Talbe sugarcane_hotspot
+				where sh.acq_date -- Where ด้วย Date ที่เป็น Lookup จาก Table year_production
+					BETWEEN $1 and $2
+				GROUP BY sh.region_id -- GROUP ด้วยภูมิภาค
+				ORDER BY sh.region_id; -- ORDER ด้วยภูมิภาค 
 			`,
 			[yearLookupCondition.hotspotStart, yearLookupCondition.hotspotEnd],
 		)
@@ -153,10 +160,12 @@ export class OverviewController {
 			return {
 				regionId: e.region_id,
 				regionCount: Number(e.region_count),
-				regionHotspot: Number(e.region_hotspot),
+				inSugarcane: Number(e.in_sugarcane),
+				notInSugarcane: Number(e.not_in_sugarcane),
+				// regionHotspot: Number(e.region_hotspot),
 			}
 		})
 
-		return new ResponseDto<GetHeatPointsOverviewDtoOut>({ data })
+		return new ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut>({ data })
 	}
 }
