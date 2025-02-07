@@ -123,7 +123,6 @@ export class OverviewController {
 			}
 		})
 
-		// year condition row
 		return new ResponseDto<GetHeatPointsOverviewDtoOut>({ data })
 	}
 }
