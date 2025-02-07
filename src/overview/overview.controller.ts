@@ -133,7 +133,7 @@ export class OverviewController {
 	}
 
 	@Get('heat-points-sugarcane')
-	// @UseGuards(AuthGuard)
+	@UseGuards(AuthGuard)
 	async getHeatPointsSugarcane(
 		@Query() payload: GetHeatPointsSugarcaneOverviewDtoIn,
 	): Promise<ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut>> {
