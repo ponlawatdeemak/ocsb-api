@@ -26,7 +26,7 @@ export class ProfileController {
 		private readonly userEntity: Repository<UsersEntity>,
 	) {}
 
-	@Get('/')
+	@Get('')
 	@UseGuards(AuthGuard)
 	async get(@Request() req, @User() user: UserMeta): Promise<ResponseDto<GetProfileDtoOut>> {
 		const result: GetProfileDtoOut[] = await this.userEntity
@@ -94,4 +94,3 @@ export class ProfileController {
 		return new ResponseDto({ data: { success: true } })
 	}
 }
-
