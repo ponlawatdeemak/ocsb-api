@@ -42,6 +42,7 @@
 		"multer": "^1.4.5-lts.1",
 		"reflect-metadata": "^0.2.0",
 		"rxjs": "^7.8.1",
+		"ssh2": "^1.16.0",
 		"typeorm": "^0.3.20",
 		"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
 	},
