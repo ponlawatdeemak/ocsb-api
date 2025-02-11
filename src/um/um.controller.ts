@@ -208,6 +208,10 @@ export class UMController {
 	async put(@Request() req, @User() user: UserMeta): Promise<ResponseDto<PutUMDtoOut>> {
 		const userId = req.params.userId
 		const payload: PutUMDtoIn = req.body
+
+		//delete data user_regions
+		await this.entityManager.query(`DELETE FROM sugarcane.user_regions where user_id = ${userId}`)
+
 		const existingUser = await this.userEntity.findOne({
 			where: { userId, isDeleted: false },
 			relations: ['regions'],
