@@ -97,6 +97,7 @@ export class UMController {
 			.leftJoinAndSelect('users.role', 'role')
 			.leftJoinAndSelect('users.position', 'position')
 			.leftJoinAndSelect('users.region', 'region')
+			.where({ isDeleted: false })
 		if (query.keyword) {
 			const keywords = query.keyword.trim().split(/\s+/)
 			const conditions = keywords
