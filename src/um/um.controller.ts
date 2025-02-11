@@ -27,7 +27,6 @@ import {
 	DeleteImageUserDtoOut,
 	DeleteUMDtoOut,
 	GetUMDtoOut,
-	PostActiveUMDtoIn,
 	PostImageUserDtoOut,
 	PostImportCsvUMDtoOut,
 	PostUMDtoOut,
@@ -44,6 +43,7 @@ import {
 	PostUMDtoIn,
 	PutUMDtoIn,
 	SearchUMDtoIn,
+	PostActiveUMDtoIn,
 } from '@interface/dto/um/um.dto.in'
 import { User } from 'src/core/user.decorator'
 import { UserMeta } from '@interface/auth.type'
@@ -526,8 +526,9 @@ export class UMController {
 	@Post('/active')
 	@UseGuards(AuthGuard)
 	async active(@Body() payload: PostActiveUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<null>> {
+		const userIds = payload.userIds.split(' ').join('').split(',')
 		// Search App user
-		const existingUser = await this.userEntity.find({ where: { userId: In(payload.userIds.split(',')) } })
+		const existingUser = await this.userEntity.find({ where: { userId: In(userIds) } })
 
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 
