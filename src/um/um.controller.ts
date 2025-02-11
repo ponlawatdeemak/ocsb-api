@@ -21,7 +21,7 @@ import {
 import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
 import { AuthGuard } from 'src/core/auth.guard'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
-import { Repository, EntityManager, In } from 'typeorm'
+import { Repository, EntityManager, In, Not } from 'typeorm'
 import { errorResponse } from '@interface/config/error.config'
 import {
 	DeleteImageUserDtoOut,
@@ -53,6 +53,8 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import * as XLSX from 'xlsx'
 import { importUserTemplate, ImportValidatorType } from '@interface/config/um.config'
 import { MailService } from 'src/core/mail.service'
+import { RpcException } from '@nestjs/microservices'
+import { HttpStatus } from '@nestjs/common'
 import * as path from 'path'
 import * as fs from 'fs'
 
@@ -152,6 +154,19 @@ export class UMController {
 	@UseGuards(AuthGuard)
 	async post(@Body() payload: PostUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostUMDtoOut>> {
 		let newUserId = null
+
+		// Check Duplicate email
+		const isDupEMail = await this.userEntity.count({ where: { email: payload.email, isDeleted: false } })
+		if (isDupEMail > 0) {
+			throw new RpcException({ status: HttpStatus.BAD_REQUEST, message: 'DUPLICATE_EMAIL' })
+		}
+
+		// Check Duplicate Phone
+		const isDupPhone = await this.userEntity.count({ where: { phone: payload.phone, isDeleted: false } })
+		if (isDupPhone > 0) {
+			throw new RpcException({ status: HttpStatus.BAD_REQUEST, message: 'DUPLICATE_PHONE' })
+		}
+
 		const cnt = await this.userEntity.countBy({ email: payload.email, isDeleted: false })
 		if (cnt > 0) throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
@@ -208,6 +223,22 @@ export class UMController {
 	async put(@Request() req, @User() user: UserMeta): Promise<ResponseDto<PutUMDtoOut>> {
 		const userId = req.params.userId
 		const payload: PutUMDtoIn = req.body
+
+		// Check Duplicate email
+		const isDupEMail = await this.userEntity.count({
+			where: { email: payload.email, isDeleted: false, userId: Not(userId) },
+		})
+		if (isDupEMail > 0) {
+			throw new RpcException({ status: HttpStatus.BAD_REQUEST, message: 'DUPLICATE_EMAIL' })
+		}
+
+		// Check Duplicate Phone
+		const isDupPhone = await this.userEntity.count({
+			where: { phone: payload.phone, isDeleted: false, userId: Not(userId) },
+		})
+		if (isDupPhone > 0) {
+			throw new RpcException({ status: HttpStatus.BAD_REQUEST, message: 'DUPLICATE_PHONE' })
+		}
 
 		//delete data user_regions
 		await this.entityManager.query(`DELETE FROM sugarcane.user_regions where user_id = ${userId}`)
