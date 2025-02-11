@@ -27,6 +27,7 @@ import {
 	DeleteImageUserDtoOut,
 	DeleteUMDtoOut,
 	GetUMDtoOut,
+	PostActiveUMDtoIn,
 	PostImageUserDtoOut,
 	PostImportCsvUMDtoOut,
 	PostUMDtoOut,
@@ -126,14 +127,10 @@ export class UMController {
 			})
 		}
 		if (query.region) {
-			queryBuilder.andWhere('region.regionId IN (:...regionIds)', {
-				regionIds: validatePayload(query.region),
-			})
+			queryBuilder.andWhere('region.regionId IN (:...regionIds)', { regionIds: validatePayload(query.region) })
 		}
 		if (query.role) {
-			queryBuilder.andWhere('role.roleId IN (:...roleIds)', {
-				roleIds: validatePayload(query.role),
-			})
+			queryBuilder.andWhere('role.roleId IN (:...roleIds)', { roleIds: validatePayload(query.role) })
 		}
 		if (query.orderBy && query.order) {
 			if (query.orderBy === 'user_fullname') {
@@ -240,9 +237,7 @@ export class UMController {
 	@UseGuards(AuthGuard)
 	async delete(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteUMDtoOut>> {
 		const params: DeleteUMDtoIn = req.params
-		const existingUser = await this.userEntity.findOne({
-			where: { userId: params.userId, isDeleted: false },
-		})
+		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			existingUser.isDeleted = true
@@ -271,10 +266,7 @@ export class UMController {
 		const jsonData = XLSX.utils.sheet_to_json(worksheet)
 		const totalRow = jsonData.length
 
-		const errorList: {
-			rowNo: number
-			remarkList: string[]
-		}[] = []
+		const errorList: { rowNo: number; remarkList: string[] }[] = []
 
 		const validateRow = async (row: any, index: number) => {
 			const remarkList = []
@@ -473,24 +465,11 @@ export class UMController {
 		}
 	}
 
-	@Get('/import/template')
-	// @UseGuards(AuthGuard)
-	async getImportTemplate(@Res() res) {
-		// try {
-		// 	const filePath = path.join(process.cwd(), 'dist/file/template.csv')
-		// 	res.download(filePath, 'template.csv')
-		// } catch (error) {
-		// 	console.log('error', error)
-		// }
-	}
-
 	@Get('/img/:userId')
 	// @UseGuards(AuthGuard)
 	async getImage(@Request() req, @Res() res) {
 		const params: GetImageUserDtoIn = req.params
-		const existingUser = await this.userEntity.findOne({
-			where: { userId: params.userId, isDeleted: false },
-		})
+		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		if (!existingUser.img) {
 			throw new BadRequestException(errorResponse.USER_IMG_NOT_FOUND)
@@ -513,9 +492,7 @@ export class UMController {
 			throw new BadRequestException(errorResponse.NO_FILE_UPLOAD)
 		}
 		const base64Image = file.buffer.toString('base64')
-		const existingUser = await this.userEntity.findOne({
-			where: { userId: params.userId, isDeleted: false },
-		})
+		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			existingUser.img = base64Image
@@ -523,20 +500,14 @@ export class UMController {
 			existingUser.updatedAt = new Date()
 			await transactionalEntityManager.save(existingUser)
 		})
-		return new ResponseDto({
-			data: {
-				id: params.userId,
-			},
-		})
+		return new ResponseDto({ data: { id: params.userId } })
 	}
 
 	@Delete('/img/:userId')
 	@UseGuards(AuthGuard)
 	async deleteImage(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteImageUserDtoOut>> {
 		const params: DeleteImageUserDtoIn = req.params
-		const existingUser = await this.userEntity.findOne({
-			where: { userId: params.userId, isDeleted: false },
-		})
+		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		if (!existingUser.img) {
 			throw new BadRequestException(errorResponse.USER_IMG_NOT_FOUND)
@@ -548,10 +519,29 @@ export class UMController {
 			await transactionalEntityManager.save(existingUser)
 		})
 
-		return new ResponseDto({
-			data: {
-				id: user.id,
-			},
+		return new ResponseDto({ data: { id: user.id } })
+	}
+
+	@Post('/active')
+	@UseGuards(AuthGuard)
+	async active(@Body() payload: PostActiveUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<null>> {
+		// Search App user
+		const existingUser = await this.userEntity.find({ where: { userId: In(payload.userIds.split(',')) } })
+
+		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
+
+		// edit active
+		existingUser.forEach((item) => {
+			item.isActive = payload.isActive
+			item.updatedAt = new Date()
+			item.updatedBy = { userId: user.id }
 		})
+
+		await this.entityManager.transaction(async (transactionalEntityManager) => {
+			// save
+			await transactionalEntityManager.save(existingUser)
+		})
+
+		return new ResponseDto({ data: null })
 	}
 }
