@@ -1,11 +1,10 @@
 import { ResponseDto } from '@interface/config/app.config'
 import { GetProfileDtoOut } from '@interface/dto/profile/profile.dto-out'
-import { StatustoOut } from '@interface/config/app.config'
+
 import {
 	Controller,
 	Delete,
 	Get,
-	Patch,
 	Post,
 	Put,
 	Request,
@@ -16,12 +15,11 @@ import {
 	UploadedFile,
 	UseInterceptors,
 	Res,
-	StreamableFile,
 } from '@nestjs/common'
 import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
 import { AuthGuard } from 'src/core/auth.guard'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
-import { Repository, EntityManager, In, Not } from 'typeorm'
+import { Repository, EntityManager, In } from 'typeorm'
 import { errorResponse } from '@interface/config/error.config'
 import {
 	DeleteImageUserDtoOut,
@@ -53,10 +51,6 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import * as XLSX from 'xlsx'
 import { importUserTemplate, ImportValidatorType } from '@interface/config/um.config'
 import { MailService } from 'src/core/mail.service'
-import { RpcException } from '@nestjs/microservices'
-import { HttpStatus } from '@nestjs/common'
-import * as path from 'path'
-import * as fs from 'fs'
 
 @Controller('um')
 export class UMController {
@@ -153,22 +147,15 @@ export class UMController {
 	@Post()
 	@UseGuards(AuthGuard)
 	async post(@Body() payload: PostUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostUMDtoOut>> {
+		const cntEmail = await this.userEntity.countBy({ email: payload.email })
+		if (cntEmail > 0) {
+			throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
+		}
+		const cntPhone = await this.userEntity.countBy({ email: payload.phone })
+		if (cntPhone > 0) {
+			throw new BadRequestException(errorResponse.USER_PHONE_DUPLICATED)
+		}
 		let newUserId = null
-
-		// Check Duplicate email
-		const isDupEMail = await this.userEntity.count({ where: { email: payload.email, isDeleted: false } })
-		if (isDupEMail > 0) {
-			throw new RpcException({ status: HttpStatus.BAD_REQUEST, message: 'DUPLICATE_EMAIL' })
-		}
-
-		// Check Duplicate Phone
-		const isDupPhone = await this.userEntity.count({ where: { phone: payload.phone, isDeleted: false } })
-		if (isDupPhone > 0) {
-			throw new RpcException({ status: HttpStatus.BAD_REQUEST, message: 'DUPLICATE_PHONE' })
-		}
-
-		const cnt = await this.userEntity.countBy({ email: payload.email, isDeleted: false })
-		if (cnt > 0) throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			const newPassword = this.randomService.generatePassword()
 			const newUser = transactionalEntityManager.create(UsersEntity, payload)
@@ -223,31 +210,24 @@ export class UMController {
 	async put(@Request() req, @User() user: UserMeta): Promise<ResponseDto<PutUMDtoOut>> {
 		const userId = req.params.userId
 		const payload: PutUMDtoIn = req.body
-
-		// Check Duplicate email
-		const isDupEMail = await this.userEntity.count({
-			where: { email: payload.email, isDeleted: false, userId: Not(userId) },
-		})
-		if (isDupEMail > 0) {
-			throw new RpcException({ status: HttpStatus.BAD_REQUEST, message: 'DUPLICATE_EMAIL' })
-		}
-
-		// Check Duplicate Phone
-		const isDupPhone = await this.userEntity.count({
-			where: { phone: payload.phone, isDeleted: false, userId: Not(userId) },
-		})
-		if (isDupPhone > 0) {
-			throw new RpcException({ status: HttpStatus.BAD_REQUEST, message: 'DUPLICATE_PHONE' })
-		}
-
-		//delete data user_regions
-		await this.entityManager.query(`DELETE FROM sugarcane.user_regions where user_id = ${userId}`)
-
 		const existingUser = await this.userEntity.findOne({
 			where: { userId, isDeleted: false },
 			relations: ['regions'],
 		})
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
+		if (existingUser.email !== payload.email) {
+			const cntEmail = await this.userEntity.countBy({ email: payload.email })
+			if (cntEmail > 0) {
+				throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
+			}
+		}
+		if (existingUser.phone !== payload.phone) {
+			const cntPhone = await this.userEntity.countBy({ email: payload.phone })
+			if (cntPhone > 0) {
+				throw new BadRequestException(errorResponse.USER_PHONE_DUPLICATED)
+			}
+		}
+		await this.entityManager.query(`DELETE FROM sugarcane.user_regions where user_id = ${userId}`)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			Object.assign(existingUser, payload)
 			existingUser.updatedBy = { userId: user?.id }
@@ -263,11 +243,11 @@ export class UMController {
 		return new ResponseDto({ data: { id: userId } })
 	}
 
-	@Patch('/:userId')
-	@UseGuards(AuthGuard)
-	async patch(@Request() req, @User() user: UserMeta): Promise<ResponseDto<StatustoOut>> {
-		return new ResponseDto({ data: { success: true } })
-	}
+	// @Patch('/:userId')
+	// @UseGuards(AuthGuard)
+	// async patch(@Request() req, @User() user: UserMeta): Promise<ResponseDto<StatustoOut>> {
+	// 	return new ResponseDto({ data: { success: true } })
+	// }
 
 	@Delete('/:userId')
 	@UseGuards(AuthGuard)
@@ -512,6 +492,7 @@ export class UMController {
 		}
 		res.setHeader('Content-Type', 'image/png')
 		const imageBuffer = Buffer.from(existingUser.img, 'base64')
+		res.setHeader('Cache-Control', 'public, max-age=3600') // cache in browser 1H
 		return res.send(imageBuffer)
 	}
 
