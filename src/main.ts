@@ -27,10 +27,6 @@ async function bootstrap() {
 
 	app.setGlobalPrefix(basePath)
 	await app.listen(port)
-	console.log(
-		'[SSH]',
-		`ssh -N -L ${ssh.DBPort}:${ssh.DBHost}:${ssh.DBDefaultPort} ${ssh.SSHUsername}@${ssh.SSHHost} -p ${ssh.SSHPort}`,
-	)
 	console.log('[WEB]', `http://localhost:${port}${basePath}`)
 }
 bootstrap()

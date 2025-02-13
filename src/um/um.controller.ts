@@ -1,11 +1,10 @@
 import { ResponseDto } from '@interface/config/app.config'
 import { GetProfileDtoOut } from '@interface/dto/profile/profile.dto-out'
-import { StatustoOut } from '@interface/config/app.config'
+
 import {
 	Controller,
 	Delete,
 	Get,
-	Patch,
 	Post,
 	Put,
 	Request,
@@ -16,17 +15,17 @@ import {
 	UploadedFile,
 	UseInterceptors,
 	Res,
-	StreamableFile,
 } from '@nestjs/common'
 import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
 import { AuthGuard } from 'src/core/auth.guard'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
-import { Repository, EntityManager, In } from 'typeorm'
+import { Repository, EntityManager, In, Not } from 'typeorm'
 import { errorResponse } from '@interface/config/error.config'
 import {
 	DeleteImageUserDtoOut,
 	DeleteUMDtoOut,
 	GetUMDtoOut,
+	PostActiveUMDtoOut,
 	PostImageUserDtoOut,
 	PostImportCsvUMDtoOut,
 	PostUMDtoOut,
@@ -43,6 +42,7 @@ import {
 	PostUMDtoIn,
 	PutUMDtoIn,
 	SearchUMDtoIn,
+	PostActiveUMDtoIn,
 } from '@interface/dto/um/um.dto.in'
 import { User } from 'src/core/user.decorator'
 import { UserMeta } from '@interface/auth.type'
@@ -50,10 +50,8 @@ import { hashPassword, validatePayload } from 'src/core/utils'
 import { RandomService } from 'src/core/random.service'
 import { FileInterceptor } from '@nestjs/platform-express'
 import * as XLSX from 'xlsx'
-import { importUserTemplate, ImportValidatorType } from '@interface/config/um.config'
+import { importUserTemplate, ImportValidatorType, UserRole } from '@interface/config/um.config'
 import { MailService } from 'src/core/mail.service'
-import * as path from 'path'
-import * as fs from 'fs'
 
 @Controller('um')
 export class UMController {
@@ -82,7 +80,7 @@ export class UMController {
 
 	@Get('/search')
 	@UseGuards(AuthGuard)
-	async search(@Query() query: SearchUMDtoIn): Promise<ResponseDto<SearchUMDtoOut[]>> {
+	async search(@Query() query: SearchUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<SearchUMDtoOut[]>> {
 		const queryBuilder = this.userEntity
 			.createQueryBuilder('users')
 			.select([
@@ -97,6 +95,10 @@ export class UMController {
 			.leftJoinAndSelect('users.role', 'role')
 			.leftJoinAndSelect('users.position', 'position')
 			.leftJoinAndSelect('users.region', 'region')
+			.where({ isDeleted: false })
+		if (user.role.roleId === UserRole.Admin) {
+			queryBuilder.andWhere({ role: { roleId: Not(UserRole.SuperAdmin) } })
+		}
 		if (query.keyword) {
 			const keywords = query.keyword.trim().split(/\s+/)
 			const conditions = keywords
@@ -126,14 +128,10 @@ export class UMController {
 			})
 		}
 		if (query.region) {
-			queryBuilder.andWhere('region.regionId IN (:...regionIds)', {
-				regionIds: validatePayload(query.region),
-			})
+			queryBuilder.andWhere('region.regionId IN (:...regionIds)', { regionIds: validatePayload(query.region) })
 		}
 		if (query.role) {
-			queryBuilder.andWhere('role.roleId IN (:...roleIds)', {
-				roleIds: validatePayload(query.role),
-			})
+			queryBuilder.andWhere('role.roleId IN (:...roleIds)', { roleIds: validatePayload(query.role) })
 		}
 		if (query.orderBy && query.order) {
 			if (query.orderBy === 'user_fullname') {
@@ -153,9 +151,15 @@ export class UMController {
 	@Post()
 	@UseGuards(AuthGuard)
 	async post(@Body() payload: PostUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostUMDtoOut>> {
+		const cntEmail = await this.userEntity.countBy({ email: payload.email })
+		if (cntEmail > 0) {
+			throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
+		}
+		const cntPhone = await this.userEntity.countBy({ phone: payload.phone })
+		if (cntPhone > 0) {
+			throw new BadRequestException(errorResponse.USER_PHONE_DUPLICATED)
+		}
 		let newUserId = null
-		const cnt = await this.userEntity.countBy({ email: payload.email, isDeleted: false })
-		if (cnt > 0) throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			const newPassword = this.randomService.generatePassword()
 			const newUser = transactionalEntityManager.create(UsersEntity, payload)
@@ -215,6 +219,19 @@ export class UMController {
 			relations: ['regions'],
 		})
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
+		if (existingUser.email !== payload.email) {
+			const cntEmail = await this.userEntity.countBy({ email: payload.email })
+			if (cntEmail > 0) {
+				throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
+			}
+		}
+		if (existingUser.phone !== payload.phone) {
+			const cntPhone = await this.userEntity.countBy({ phone: payload.phone })
+			if (cntPhone > 0) {
+				throw new BadRequestException(errorResponse.USER_PHONE_DUPLICATED)
+			}
+		}
+		await this.entityManager.query(`DELETE FROM sugarcane.user_regions where user_id = ${userId}`)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			Object.assign(existingUser, payload)
 			existingUser.updatedBy = { userId: user?.id }
@@ -230,19 +247,17 @@ export class UMController {
 		return new ResponseDto({ data: { id: userId } })
 	}
 
-	@Patch('/:userId')
-	@UseGuards(AuthGuard)
-	async patch(@Request() req, @User() user: UserMeta): Promise<ResponseDto<StatustoOut>> {
-		return new ResponseDto({ data: { success: true } })
-	}
+	// @Patch('/:userId')
+	// @UseGuards(AuthGuard)
+	// async patch(@Request() req, @User() user: UserMeta): Promise<ResponseDto<StatustoOut>> {
+	// 	return new ResponseDto({ data: { success: true } })
+	// }
 
 	@Delete('/:userId')
 	@UseGuards(AuthGuard)
 	async delete(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteUMDtoOut>> {
 		const params: DeleteUMDtoIn = req.params
-		const existingUser = await this.userEntity.findOne({
-			where: { userId: params.userId, isDeleted: false },
-		})
+		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			existingUser.isDeleted = true
@@ -271,10 +286,7 @@ export class UMController {
 		const jsonData = XLSX.utils.sheet_to_json(worksheet)
 		const totalRow = jsonData.length
 
-		const errorList: {
-			rowNo: number
-			remarkList: string[]
-		}[] = []
+		const errorList: { rowNo: number; remarkList: string[] }[] = []
 
 		const validateRow = async (row: any, index: number) => {
 			const remarkList = []
@@ -473,30 +485,18 @@ export class UMController {
 		}
 	}
 
-	@Get('/import/template')
-	// @UseGuards(AuthGuard)
-	async getImportTemplate(@Res() res) {
-		// try {
-		// 	const filePath = path.join(process.cwd(), 'dist/file/template.csv')
-		// 	res.download(filePath, 'template.csv')
-		// } catch (error) {
-		// 	console.log('error', error)
-		// }
-	}
-
 	@Get('/img/:userId')
 	// @UseGuards(AuthGuard)
 	async getImage(@Request() req, @Res() res) {
 		const params: GetImageUserDtoIn = req.params
-		const existingUser = await this.userEntity.findOne({
-			where: { userId: params.userId, isDeleted: false },
-		})
+		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		if (!existingUser.img) {
 			throw new BadRequestException(errorResponse.USER_IMG_NOT_FOUND)
 		}
 		res.setHeader('Content-Type', 'image/png')
 		const imageBuffer = Buffer.from(existingUser.img, 'base64')
+		res.setHeader('Cache-Control', 'public, max-age=3600') // cache in browser 1H
 		return res.send(imageBuffer)
 	}
 
@@ -513,9 +513,7 @@ export class UMController {
 			throw new BadRequestException(errorResponse.NO_FILE_UPLOAD)
 		}
 		const base64Image = file.buffer.toString('base64')
-		const existingUser = await this.userEntity.findOne({
-			where: { userId: params.userId, isDeleted: false },
-		})
+		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			existingUser.img = base64Image
@@ -523,20 +521,14 @@ export class UMController {
 			existingUser.updatedAt = new Date()
 			await transactionalEntityManager.save(existingUser)
 		})
-		return new ResponseDto({
-			data: {
-				id: params.userId,
-			},
-		})
+		return new ResponseDto({ data: { id: params.userId } })
 	}
 
 	@Delete('/img/:userId')
 	@UseGuards(AuthGuard)
 	async deleteImage(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteImageUserDtoOut>> {
 		const params: DeleteImageUserDtoIn = req.params
-		const existingUser = await this.userEntity.findOne({
-			where: { userId: params.userId, isDeleted: false },
-		})
+		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		if (!existingUser.img) {
 			throw new BadRequestException(errorResponse.USER_IMG_NOT_FOUND)
@@ -548,10 +540,30 @@ export class UMController {
 			await transactionalEntityManager.save(existingUser)
 		})
 
-		return new ResponseDto({
-			data: {
-				id: user.id,
-			},
+		return new ResponseDto({ data: { id: user.id } })
+	}
+
+	@Post('/active')
+	@UseGuards(AuthGuard)
+	async active(@Body() payload: PostActiveUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostActiveUMDtoOut>> {
+		const userIds = payload.userIds.split(' ').join('').split(',')
+		// Search App user
+		const existingUser = await this.userEntity.find({ where: { userId: In(userIds) } })
+
+		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
+
+		// edit active
+		existingUser.forEach((item) => {
+			item.isActive = payload.isActive
+			item.updatedAt = new Date()
+			item.updatedBy = { userId: user.id }
 		})
+
+		await this.entityManager.transaction(async (transactionalEntityManager) => {
+			// save
+			await transactionalEntityManager.save(existingUser)
+		})
+
+		return new ResponseDto({ data: { success: true } })
 	}
 }
