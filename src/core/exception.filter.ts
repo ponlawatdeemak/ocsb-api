@@ -22,6 +22,7 @@ export class AppExceptionsFilter implements ExceptionFilter {
 			}
 		} else {
 			const error = exception as any
+			console.error('exception: ', exception)
 			// เป็น error ปกติที่ไม่ใช่ http exception
 			httpStatus = HttpStatus.INTERNAL_SERVER_ERROR
 			errorRes = {

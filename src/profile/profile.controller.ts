@@ -1,10 +1,5 @@
 import { ResponseDto } from '@interface/config/app.config'
-import {
-	ChangePasswordProfileDtoOut,
-	GetProfileDtoOut,
-	PostProfileDtoIn,
-	PostProfileDtoOut,
-} from '@interface/dto/profile/profile.dto-out'
+import { ChangePasswordProfileDtoOut, GetProfileDtoOut } from '@interface/dto/profile/profile.dto-out'
 import { Controller, Get, UseGuards, Request, Put, Body, BadRequestException } from '@nestjs/common'
 import { AuthGuard } from 'src/core/auth.guard'
 import { UserMeta } from '@interface/auth.type'
@@ -26,10 +21,10 @@ export class ProfileController {
 		private readonly userEntity: Repository<UsersEntity>,
 	) {}
 
-	@Get('/')
+	@Get('')
 	@UseGuards(AuthGuard)
 	async get(@Request() req, @User() user: UserMeta): Promise<ResponseDto<GetProfileDtoOut>> {
-		const result: GetProfileDtoOut[] = await this.userEntity
+		const result = await this.userEntity
 			.createQueryBuilder('users')
 			.select([
 				'users.userId',
@@ -38,6 +33,7 @@ export class ProfileController {
 				'users.email',
 				'users.phone',
 				'users.isActive',
+				'users.img',
 			])
 			.leftJoinAndSelect('users.role', 'role')
 			.leftJoinAndSelect('role.roleFeatures', 'role_features')
@@ -49,15 +45,10 @@ export class ProfileController {
 			.where({ userId: user.id })
 			.getMany()
 		if (result.length === 0) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
-		return new ResponseDto({ data: result[0] as any })
-	}
-
-	@Put('/:id')
-	@UseGuards(AuthGuard)
-	async put(@Request() req): Promise<ResponseDto<PostProfileDtoOut>> {
-		const id = req.params.id
-		const putData: PostProfileDtoIn = req.body
-		return new ResponseDto({ data: { success: true } })
+		const hasImage = !!result[0].img
+		delete result[0].img
+		const temp: GetProfileDtoOut = { ...result[0], hasImage }
+		return new ResponseDto({ data: temp })
 	}
 
 	@Put('/change-password')
@@ -94,4 +85,3 @@ export class ProfileController {
 		return new ResponseDto({ data: { success: true } })
 	}
 }
-

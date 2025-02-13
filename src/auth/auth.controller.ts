@@ -60,6 +60,7 @@ export class AuthController {
 				'users.phone',
 				'users.isActive',
 				'users.password',
+				'users.img',
 			])
 			.leftJoinAndSelect('users.role', 'role')
 			.leftJoinAndSelect('users.position', 'position')
@@ -83,14 +84,15 @@ export class AuthController {
 		const refreshToken = jwt.sign(paylod, process.env.JWT_SECRET_REFRESH, {
 			expiresIn: this.refreshTokenExpried,
 		})
+		const hasImage = !!user.img
+		delete user.img
 		const userOut = {
 			...user,
 			password: undefined,
 			userId: undefined,
 		}
-		return new ResponseDto({
-			data: { id: user.userId, accessToken, refreshToken, ...userOut },
-		})
+		const data: LoginAuthDtoOut = { id: user.userId, accessToken, refreshToken, ...userOut, hasImage }
+		return new ResponseDto({ data })
 	}
 
 	@Post('/refresh-token')
