@@ -151,11 +151,11 @@ export class UMController {
 	@Post()
 	@UseGuards(AuthGuard)
 	async post(@Body() payload: PostUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostUMDtoOut>> {
-		const cntEmail = await this.userEntity.countBy({ email: payload.email })
+		const cntEmail = await this.userEntity.countBy({ email: payload.email, isDeleted: false })
 		if (cntEmail > 0) {
 			throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
 		}
-		const cntPhone = await this.userEntity.countBy({ phone: payload.phone })
+		const cntPhone = await this.userEntity.countBy({ phone: payload.phone, isDeleted: false })
 		if (cntPhone > 0) {
 			throw new BadRequestException(errorResponse.USER_PHONE_DUPLICATED)
 		}
