@@ -19,7 +19,7 @@ import {
 import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
 import { AuthGuard } from 'src/core/auth.guard'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
-import { Repository, EntityManager, In } from 'typeorm'
+import { Repository, EntityManager, In, Not } from 'typeorm'
 import { errorResponse } from '@interface/config/error.config'
 import {
 	DeleteImageUserDtoOut,
@@ -50,7 +50,7 @@ import { hashPassword, validatePayload } from 'src/core/utils'
 import { RandomService } from 'src/core/random.service'
 import { FileInterceptor } from '@nestjs/platform-express'
 import * as XLSX from 'xlsx'
-import { importUserTemplate, ImportValidatorType } from '@interface/config/um.config'
+import { importUserTemplate, ImportValidatorType, UserRole } from '@interface/config/um.config'
 import { MailService } from 'src/core/mail.service'
 
 @Controller('um')
@@ -80,7 +80,7 @@ export class UMController {
 
 	@Get('/search')
 	@UseGuards(AuthGuard)
-	async search(@Query() query: SearchUMDtoIn): Promise<ResponseDto<SearchUMDtoOut[]>> {
+	async search(@Query() query: SearchUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<SearchUMDtoOut[]>> {
 		const queryBuilder = this.userEntity
 			.createQueryBuilder('users')
 			.select([
@@ -96,6 +96,9 @@ export class UMController {
 			.leftJoinAndSelect('users.position', 'position')
 			.leftJoinAndSelect('users.region', 'region')
 			.where({ isDeleted: false })
+		if (user.role.roleId === UserRole.Admin) {
+			queryBuilder.andWhere({ role: { roleId: Not(UserRole.SuperAdmin) } })
+		}
 		if (query.keyword) {
 			const keywords = query.keyword.trim().split(/\s+/)
 			const conditions = keywords
