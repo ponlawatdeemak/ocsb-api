@@ -1,8 +1,5 @@
 import { ResponseDto } from '@interface/config/app.config'
-import { GetLookupDtoIn } from '@interface/dto/lookup/lookup.dto-in'
-import { GetLookupDtoOut } from '@interface/dto/lookup/lookup.dto-out'
-import { Controller, Get, Query, UseGuards } from '@nestjs/common'
-import { snakeCase } from 'change-case'
+import { Controller, Get, Query } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Repository, Between } from 'typeorm'
 import {
@@ -25,7 +22,7 @@ import {
 } from '@interface/dto/overview/overview.dto-out'
 import { YearProductionEntity } from '@interface/entities'
 import { SugarcaneHotspotEntity } from '@interface/entities/sugarcane-hotspot.entity'
-import { AuthGuard } from 'src/core/auth.guard'
+
 @Controller('overview')
 export class OverviewController {
 	constructor(
@@ -40,7 +37,6 @@ export class OverviewController {
 	) {}
 
 	@Get('summary')
-	@UseGuards(AuthGuard)
 	async getSummary(@Query() payload: GetSummaryOverviewDtoIn): Promise<ResponseDto<GetSummaryOverviewDtoOut>> {
 		// year condition row
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
@@ -105,7 +101,6 @@ export class OverviewController {
 	}
 
 	@Get('heat-points')
-	@UseGuards(AuthGuard)
 	async getHeatPoints(
 		@Query() payload: GetHeatPointsOverviewDtoIn,
 	): Promise<ResponseDto<GetHeatPointsOverviewDtoOut[]>> {
@@ -141,7 +136,6 @@ export class OverviewController {
 	}
 
 	@Get('heat-points-sugarcane')
-	@UseGuards(AuthGuard)
 	async getHeatPointsSugarcane(
 		@Query() payload: GetHeatPointsSugarcaneOverviewDtoIn,
 	): Promise<ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut[]>> {
@@ -178,7 +172,6 @@ export class OverviewController {
 	}
 
 	@Get('burnt')
-	@UseGuards(AuthGuard)
 	async getBurnt(@Query() payload: GetBurntOverviewDtoIn): Promise<ResponseDto<GetBurntOverviewDtoOut[]>> {
 		const queryResult = await this.dataSource.query(
 			`WITH month_series AS (
@@ -228,7 +221,6 @@ export class OverviewController {
 	}
 
 	@Get('plant')
-	@UseGuards(AuthGuard)
 	async getPlant(@Query() payload: GetPlantOverviewDtoIn): Promise<ResponseDto<GetPlantOverviewDtoOut>> {
 		// year condition row
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
@@ -313,7 +305,6 @@ export class OverviewController {
 	}
 
 	@Get('product')
-	@UseGuards(AuthGuard)
 	async getProduct(@Query() payload: GetProductOverviewDtoIn): Promise<ResponseDto<GetProductOverviewDtoOut[]>> {
 		const queryResult = await this.dataSource.query(
 			`select r.region_id, -- Dto Out : regionId
@@ -373,7 +364,6 @@ export class OverviewController {
 	}
 
 	@Get('product-predict')
-	@UseGuards(AuthGuard)
 	async getProductPredict(
 		@Query() payload: GetProductPredictOverviewDtoIn,
 	): Promise<ResponseDto<GetProductPredictOverviewDtoOut[]>> {
@@ -435,7 +425,6 @@ export class OverviewController {
 	}
 
 	@Get('replant')
-	@UseGuards(AuthGuard)
 	async getReplant(
 		@Query() payload: GetProductPredictOverviewDtoIn,
 	): Promise<ResponseDto<GetProductPredictOverviewDtoOut[]>> {
