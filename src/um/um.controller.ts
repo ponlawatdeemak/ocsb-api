@@ -25,6 +25,7 @@ import {
 	DeleteImageUserDtoOut,
 	DeleteUMDtoOut,
 	GetUMDtoOut,
+	PostActiveUMDtoOut,
 	PostImageUserDtoOut,
 	PostImportCsvUMDtoOut,
 	PostUMDtoOut,
@@ -541,7 +542,7 @@ export class UMController {
 
 	@Post('/active')
 	@UseGuards(AuthGuard)
-	async active(@Body() payload: PostActiveUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<null>> {
+	async active(@Body() payload: PostActiveUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostActiveUMDtoOut>> {
 		const userIds = payload.userIds.split(' ').join('').split(',')
 		// Search App user
 		const existingUser = await this.userEntity.find({ where: { userId: In(userIds) } })
@@ -560,6 +561,6 @@ export class UMController {
 			await transactionalEntityManager.save(existingUser)
 		})
 
-		return new ResponseDto({ data: null })
+		return new ResponseDto({ data: { success: true } })
 	}
 }
