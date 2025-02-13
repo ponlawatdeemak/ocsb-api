@@ -152,7 +152,7 @@ export class UMController {
 		if (cntEmail > 0) {
 			throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
 		}
-		const cntPhone = await this.userEntity.countBy({ email: payload.phone })
+		const cntPhone = await this.userEntity.countBy({ phone: payload.phone })
 		if (cntPhone > 0) {
 			throw new BadRequestException(errorResponse.USER_PHONE_DUPLICATED)
 		}
@@ -223,7 +223,7 @@ export class UMController {
 			}
 		}
 		if (existingUser.phone !== payload.phone) {
-			const cntPhone = await this.userEntity.countBy({ email: payload.phone })
+			const cntPhone = await this.userEntity.countBy({ phone: payload.phone })
 			if (cntPhone > 0) {
 				throw new BadRequestException(errorResponse.USER_PHONE_DUPLICATED)
 			}
