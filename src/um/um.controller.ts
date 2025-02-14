@@ -294,7 +294,12 @@ export class UMController {
 
 			for (let index = 0; index < importUserTemplate.length; index++) {
 				const element = importUserTemplate[index]
-				const value = row[element.title]
+				let value = row[element.title]
+				if (element.fieldName === 'phone') {
+					if (!isNaN(value)) {
+						value = `0${value}`
+					}
+				}
 				if (element.condition?.required && !value) {
 					remarkList.push(`กรุณาระบุ${element?.title}`)
 					hasError = true
@@ -318,6 +323,7 @@ export class UMController {
 						result = await this.entityManager
 							.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
 							.where({ [element.condition?.lookupField]: In(splitValue) })
+							.andWhere({ roleId: In([UserRole.SuperAdmin, UserRole.Admin]) })
 							.getMany()
 					} else {
 						result = await this.entityManager
@@ -400,7 +406,6 @@ export class UMController {
 			const sheetName: string = wb.SheetNames[0]
 			const worksheet: XLSX.WorkSheet = wb.Sheets[sheetName]
 			const jsonData = XLSX.utils.sheet_to_json(worksheet)
-
 			const arrayOfObject = []
 			// Loop Data ที่ได้จาก Excel
 			jsonData.forEach((item) => {
@@ -462,7 +467,15 @@ export class UMController {
 								object[config.fieldName] = objProvince
 							}
 						} else {
-							object[config.fieldName] = item[config.title]
+							let value = item[config.title]
+							if (config.fieldName === 'phone') {
+								if (!isNaN(value)) {
+									value = `0${value}`
+									object[config.fieldName] = value
+								}
+							} else {
+								object[config.fieldName] = value
+							}
 						}
 					}
 				})
