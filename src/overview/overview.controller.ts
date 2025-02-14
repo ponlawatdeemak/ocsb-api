@@ -196,49 +196,6 @@ export class OverviewController {
 
 	@Get('burnt')
 	async getBurnt(@Query() payload: GetBurntOverviewDtoIn): Promise<ResponseDto<GetBurntOverviewDtoOut[]>> {
-		// const queryResult = await this.dataSource.query(
-		// 	`WITH month_series AS (
-		// 		-- สร้างช่วงเดือนทั้งหมดในช่วง burn_area_start - burn_area_end
-		// 		SELECT generate_series(
-		// 			(SELECT DATE_TRUNC('month', yp.burn_area_start) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), -- id จาก query param
-		// 			(SELECT DATE_TRUNC('month', yp.burn_area_end) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), -- id จาก query param
-		// 			'1 month'
-		// 		)::date AS month
-		// 	),
-		// 	region_series AS (
-		// 		-- ดึง region_id ทั้งหมดจาก Talbe lookup
-		// 		SELECT r.region_id,
-		// 		r.region_name,
-		// 		r.region_name_en ,
-		// 		ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces,
-		// 		ARRAY_AGG(DISTINCT p.province_name_en ORDER BY p.province_name_en) AS provinces_en
-		// 		FROM sugarcane.sugarcane.regions r  -- Table regions
-		// 		left join sugarcane.sugarcane.provinces p on p.region_id = r.region_id
-		// 		where r.region_id < 5
-		// 		group by r.region_id
-		// 	)
-		// 	SELECT
-		// 		TO_CHAR(ms.month, 'YYYY-MM') AS month,  -- Dto Out : month
-		// 		rs.region_id, -- Dto Out : regionId
-		// 		rs.region_name,
-		// 		rs.region_name_en,
-		// 		rs.provinces,
-		// 		rs.provinces_en,
-		// 		SUM(sdba.area_m2) AS m2, -- Dto Out : m2
-		// 		SUM(sdba.area_km2) AS km2, -- Dto Out : km2
-		// 		SUM(sdba.area_rai) AS rai, -- Dto Out : rai
-		// 		SUM(sdba.area_hexa) AS hexa -- Dto Out : hexa
-		// 	FROM month_series ms -- สร้าง Table Temp เพื่อจำทำช่วงเดือนทั้งหมดของ Period
-		// 	CROSS JOIN region_series rs  -- นำ Lookup region มา join เพื่อให้ทุก region_id มีทุกเดือน
-		// 	LEFT JOIN sugarcane.sugarcane.sugarcane_ds_burn_area sdba -- Join ที่ Table sugarcane_ds_burn_area
-		// 		ON DATE_TRUNC('month', sdba.detected_d) = ms.month -- ON ด้วย detected_d ที่แปลงเป็น DATE_TRUNC ให้ตรงกับ month_series ที่ทำมา
-		// 		AND sdba.region_id = rs.region_id  -- และ region_id ของ sugarcane_ds_burn_area = region_series
-		// 	GROUP BY ms.month, rs.region_id, rs.region_name, rs.region_name_en,rs.provinces,rs.provinces_en -- Group ด้วย month_series และ region_series
-		// 	ORDER BY ms.month, rs.region_id; -- Group ด้วย ORDER และ ORDER
-		// 	`,
-		// 	[payload.id],
-		// )
-
 		const queryResult = await this.dataSource.query(
 			`WITH month_series AS (
 				-- สร้างช่วงเดือนทั้งหมดในช่วง burn_area_start - burn_area_end
@@ -284,7 +241,7 @@ export class OverviewController {
 				rs.provinces_en,
 				JSON_AGG(
 					JSON_BUILD_OBJECT(
-						'month', TO_CHAR(ad.month, 'YYYY-MM'),
+						'month', TO_CHAR(ad.month, 'YYYY-MM-01'),
 						'area',json_build_object(
 						'm2', ad.m2,
 						'km2', ad.km2,
@@ -398,11 +355,11 @@ export class OverviewController {
 					rai: Number(e.rai),
 					hexa: Number(e.hexa),
 				},
-				areaPercent: {
-					m2Percent: Number(e.m2_percent),
-					km2Percent: Number(e.km2_percent),
-					raiPercent: Number(e.rai_percent),
-					hexaPercent: Number(e.hexa_percent),
+				percent: {
+					m2: Number(e.m2_percent),
+					km2: Number(e.km2_percent),
+					rai: Number(e.rai_percent),
+					hexa: Number(e.hexa_percent),
 				},
 			}
 		})
