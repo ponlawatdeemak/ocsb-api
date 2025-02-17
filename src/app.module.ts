@@ -12,6 +12,7 @@ import {
 	RegionsEntity,
 	RolesEntity,
 	SugarcaneDsBurnAreaEntity,
+	SugarcaneDsYieldPredEntity,
 	UsersEntity,
 	YearProductionEntity,
 } from '@interface/entities'
@@ -19,6 +20,7 @@ import { RandomService } from './core/random.service'
 import { MailService } from './core/mail.service'
 import { OverviewController } from './overview/overview.controller'
 import { SugarcaneHotspotEntity } from '@interface/entities/sugarcane-hotspot.entity'
+import { BruntAreaController } from './brunt-area/brunt-area.controller'
 
 const imports = [
 	ConfigModule.forRoot({ isGlobal: true }),
@@ -32,12 +34,13 @@ const imports = [
 		YearProductionEntity,
 		SugarcaneHotspotEntity,
 		SugarcaneDsBurnAreaEntity,
+		SugarcaneDsYieldPredEntity,
 	]),
 	AuthModule,
 ]
 @Module({
 	imports: imports,
-	controllers: [LookupController, OverviewController, ProfileController, UMController],
+	controllers: [LookupController, OverviewController, ProfileController, UMController, BruntAreaController],
 	providers: [RandomService, MailService],
 })
 export class AppModule {}
