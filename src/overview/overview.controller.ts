@@ -288,10 +288,10 @@ export class OverviewController {
 						SUM(sdyp2.area_hexa) AS hexa  -- พื้นที่ทั้งหมดหน่วย Hexa
 					FROM sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp2 -- Table sugarcane_ds_yield_pred
 					JOIN sugarcane.sugarcane.year_production yp -- Join กับ Table lookup เพื่อเอา Data ปีและรอบ
-						ON yp.id = sdyp2.id -- id จาก query param
+						ON yp.id = $2 -- id จาก query param
 					WHERE sdyp2.cls_round = yp.sugarcane_round -- Where ด้วยรอบและปีตาม Lookup
-					AND DATE(sdyp2.cls_edate) BETWEEN TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD')
-					AND TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD')
+					AND sdyp2.cls_edate BETWEEN DATE(yp.sugarcane_year || '-01-01')
+					AND DATE(yp.sugarcane_year || '-12-31')
 				)
 				SELECT 
 					r.region_id, -- Dto Out : regionId
@@ -303,20 +303,20 @@ export class OverviewController {
 					COALESCE(SUM(sdyp.area_rai), 0) AS rai, -- Dto Out : rai
 					COALESCE(SUM(sdyp.area_km2), 0) AS km2, -- Dto Out : km2
 					COALESCE(SUM(sdyp.area_hexa), 0) AS hexa, -- Dto Out : hexa
-					ROUND(COALESCE(SUM(sdyp.area_m2), 0) / ta.m2 * 100, 2) AS m2_percent, -- Dto Out : m2Percent
-					ROUND(COALESCE(SUM(sdyp.area_rai), 0) / ta.rai * 100, 2) AS rai_percent, -- Dto Out : raiPercent
-					ROUND(COALESCE(SUM(sdyp.area_km2), 0) / ta.km2 * 100, 2) AS km2_percent, -- Dto Out : km2Percent
-					ROUND(COALESCE(SUM(sdyp.area_hexa), 0) / ta.hexa * 100, 2) AS hexa_percent -- Dto Out : hexaPercent
+					ROUND(COALESCE(SUM(sdyp.area_m2), 0)::numeric / (ta.m2::numeric) * 100, 2) AS m2_percent, -- Dto Out : m2Percent
+					ROUND(COALESCE(SUM(sdyp.area_rai), 0)::numeric / (ta.rai::numeric) * 100, 2) AS rai_percent, -- Dto Out : raiPercent
+					ROUND(COALESCE(SUM(sdyp.area_km2), 0)::numeric / (ta.km2::numeric) * 100, 2) AS km2_percent, -- Dto Out : km2Percent
+					ROUND(COALESCE(SUM(sdyp.area_hexa), 0)::numeric / (ta.hexa::numeric) * 100, 2) AS hexa_percent -- Dto Out : hexaPercent
 				FROM sugarcane.sugarcane.regions r -- เริ่มจาก Regions เพื่อนำไปหา พื้นที่ของแต่ละภูมิภาคที่มี
 				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp -- ไป join กับ Table ที่มีข้อมูลพื้นที่ด้วย region_id
 					ON sdyp.region_id = r.region_id
 					AND sdyp.cls_round = $1
 					AND DATE(sdyp.cls_edate) BETWEEN (
-						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
+						SELECT DATE(yp.sugarcane_year || '-01-01') 
 						FROM sugarcane.sugarcane.year_production yp 
 						WHERE yp.id = $2 -- id จาก query param
 					) AND (
-						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD') 
+						SELECT DATE(yp.sugarcane_year || '-12-31') 
 						FROM sugarcane.sugarcane.year_production yp 
 						WHERE yp.id = $2 -- id จาก query param
 					)
