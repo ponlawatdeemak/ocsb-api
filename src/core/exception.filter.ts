@@ -12,7 +12,6 @@ export class AppExceptionsFilter implements ExceptionFilter {
 		let httpStatus: number
 		let errorRes: { title: string; message: string }
 
-		// เป็น error แบบ http exception (nest.js build in http exception)
 		if (exception instanceof HttpException) {
 			httpStatus = exception.getStatus()
 			const error = exception.getResponse() as any
@@ -23,7 +22,6 @@ export class AppExceptionsFilter implements ExceptionFilter {
 		} else {
 			const error = exception as any
 			console.error('exception: ', exception)
-			// เป็น error ปกติที่ไม่ใช่ http exception
 			httpStatus = HttpStatus.INTERNAL_SERVER_ERROR
 			errorRes = {
 				title: 'Internal Server Error',
