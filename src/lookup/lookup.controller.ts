@@ -12,15 +12,10 @@ export class LookupController {
 		private readonly dataSource: DataSource,
 	) {}
 	@Get()
-	// @UseGuards(AuthGuard)
 	async get(@Query() payload: GetLookupDtoIn): Promise<ResponseDto<GetLookupDtoOut[]>> {
-		/**
-		 * table name: change case parameter "name" => req-bldg-permit-type to lut_req_bldg_permit_type
-		 */
 		const tableName = `${snakeCase(payload.name)}`
 		const repository = this.dataSource.getRepository(tableName)
 
-		// order ใส่ "" ป้องกัน field ทีเป็น reserved word ใน sql
 		const result = await repository
 			.createQueryBuilder()
 			.where(payload.where || {})

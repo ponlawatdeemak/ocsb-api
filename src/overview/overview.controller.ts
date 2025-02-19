@@ -391,7 +391,6 @@ export class OverviewController {
 			[payload.id],
 		)
 
-		// transform data
 		const data = queryResult.map((e) => {
 			return {
 				regionId: e.region_id,
@@ -456,9 +455,7 @@ export class OverviewController {
 			[payload.id],
 		)
 
-		// transform data
 		let groupedData = queryResult.reduce((acc, item) => {
-			// ถ้า regionId ยังไม่เคยมีใน acc ให้สร้างใหม่
 			if (!acc[item.region_id]) {
 				acc[item.region_id] = {
 					regionId: item.region_id,
@@ -470,7 +467,6 @@ export class OverviewController {
 				}
 			}
 
-			// สร้างข้อมูลของปีนั้นๆ
 			const yearData = {
 				yearId: item.year_id,
 				yearName: item.year_name,
@@ -481,13 +477,11 @@ export class OverviewController {
 				},
 			}
 
-			// เพิ่มข้อมูลของปีเข้าไปใน `years`
 			acc[item.region_id].years.push(yearData)
 
 			return acc
 		}, {})
 
-		// เปลี่ยนจาก object เป็น array
 		let data: GetProductPredictOverviewDtoOut[] = Object.values(groupedData)
 		return new ResponseDto<GetProductPredictOverviewDtoOut[]>({ data })
 	}
@@ -552,12 +546,10 @@ export class OverviewController {
 			[payload.id],
 		)
 
-		// transform data
 		let data = []
 		for (const item of queryResult) {
 			let g = data.find((e) => e.regionId === item.region_id)
 			if (!g) {
-				// create group
 				g = {
 					regionId: item.region_id,
 					regionName: item.region_name,
@@ -569,7 +561,6 @@ export class OverviewController {
 				data.push(g)
 			}
 
-			// create region
 			const year = {
 				yearId: item.year_id,
 				yearName: item.year_name,

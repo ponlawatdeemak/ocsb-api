@@ -49,7 +49,6 @@ export class AuthController {
 	@Post('/login')
 	async login(@Body() body: LoginAuthDtoIn): Promise<ResponseDto<LoginAuthDtoOut>> {
 		const { email, password } = body
-		// const user = await this.userEntity.findOne({ where: { email, isDeleted: false, isActive: true } })
 		const user = await this.userEntity
 			.createQueryBuilder('users')
 			.select([
@@ -129,22 +128,18 @@ export class AuthController {
 		const user = await this.userEntity.findOne({ where: { email, isDeleted: false, isActive: true } })
 		if (!user) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 
-		// read config
 		const RESET_PASSWORD_TIMEOUT = this.config.get<number>('RESET_PASSWORD_TIMEOUT')
 		const RESET_PASSWORD_FRONTEND_URL = this.config.get<number>('RESET_PASSWORD_FRONTEND_URL')
 
-		// genereate token and link
 		const resetToken = generateTokenHex(16)
 		const resetLink = `${RESET_PASSWORD_FRONTEND_URL}?token=${resetToken}`
 
 		const now = new Date()
 
-		// set to user row
 		user.resetPasswordExpire = new Date(now.getTime() + 60 * 60 * 1000 * RESET_PASSWORD_TIMEOUT)
 		user.resetPasswordToken = resetToken
 		await this.userEntity.save(user)
 
-		// send mail
 		await this.mailService.sendResetPassword(user.email, user.firstName, resetLink, RESET_PASSWORD_TIMEOUT)
 
 		return new ResponseDto({ data: { success: true } })
@@ -173,27 +168,17 @@ export class AuthController {
 				resetPasswordToken,
 				isDeleted: false,
 			})
-			// validate
 			if (!user) throw new BadRequestException(errorResponse.INVALID_TOKEN)
 
 			const now = new Date()
 			if (now > user.resetPasswordExpire) throw new BadRequestException(errorResponse.EXPIRED_TOKEN)
 
-			// set user row
 			user.password = await hash(payload.newPassword)
 			user.resetPasswordToken = null
 			user.resetPasswordExpire = null
 			user.updatedBy = { userId: user.userId }
 			user.updatedAt = new Date()
 			await transactionalEntityManager.save(user)
-
-			// create log
-			// const newLog = new LogUserEntity()
-			// newLog.operatedAccount = user.email
-			// newLog.operatedBy = { id: user.id }
-			// newLog.operatedDt = new Date()
-			// newLog.type = { id: LutLogUserType.resetPassword }
-			// await transactionalEntityManager.save(newLog)
 		})
 
 		return new ResponseDto({ data: { success: true } })

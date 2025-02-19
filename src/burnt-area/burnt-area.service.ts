@@ -57,7 +57,6 @@ export class BurntAreaService {
 						} else if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
 							qb.where('sh.in_sugarcane = true')
 						} else if (inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)) {
-							// แก้เงื่อนไขนี้ให้ถูก
 							qb.where('sh.in_sugarcane = false')
 						}
 					}),
@@ -73,13 +72,13 @@ export class BurntAreaService {
 			queryBuilderHotspot.andWhere(
 				new Brackets((qb) => {
 					if (payload.adm3C) {
-						qb.andWhere(`sh.adm3_code = :adm3C`, { adm3C: payload.adm3C })
+						qb.andWhere(`sh.o_adm3c = :adm3C`, { adm3C: payload.adm3C })
 					}
 					if (payload.adm2C) {
-						qb.andWhere(`sh.adm2_code = :adm2C`, { adm2C: payload.adm2C })
+						qb.andWhere(`sh.o_adm2c = :adm2C`, { adm2C: payload.adm2C })
 					}
 					if (payload.adm1C) {
-						qb.andWhere(`sh.adm1_code = :adm1C`, { adm1C: payload.adm1C })
+						qb.andWhere(`sh.o_adm1c = :adm1C`, { adm1C: payload.adm1C })
 					}
 				}),
 			)

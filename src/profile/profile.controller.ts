@@ -37,7 +37,7 @@ export class ProfileController {
 			])
 			.leftJoinAndSelect('users.role', 'role')
 			.leftJoinAndSelect('role.roleFeatures', 'role_features')
-			.leftJoinAndSelect('role_features.feature', 'feature') // Join Feature Table ผ่าน role_feature
+			.leftJoinAndSelect('role_features.feature', 'feature')
 			.leftJoinAndSelect('users.regions', 'regions')
 			.leftJoinAndSelect('users.position', 'position')
 			.leftJoinAndSelect('users.region', 'region')
@@ -58,7 +58,6 @@ export class ProfileController {
 		@Body() putData: ChangePasswordProfileDtoIn,
 	): Promise<ResponseDto<ChangePasswordProfileDtoOut>> {
 		const id = user.id
-		// start transcation
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
 			const userRow = await transactionalEntityManager.findOneBy(UsersEntity, { userId: id })
 
@@ -69,17 +68,7 @@ export class ProfileController {
 			userRow.password = await hashPassword(putData.newPassword)
 			userRow.updatedAt = new Date()
 			userRow.updatedBy = { userId: id }
-			// update user
 			await transactionalEntityManager.save(userRow)
-
-			// insert log
-			// const newLog = new LogUserEntity()
-			// newLog.operatedDt = new Date()
-			// newLog.operatedBy = { id }
-			// newLog.type = { id: LutLogUserType.changePassword }
-			// newLog.operatedAccount = userRow.email
-
-			// await transactionalEntityManager.save(newLog)
 		})
 
 		return new ResponseDto({ data: { success: true } })

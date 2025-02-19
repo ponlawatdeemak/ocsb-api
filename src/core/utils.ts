@@ -8,8 +8,6 @@ export async function hashPassword(password: string) {
 }
 
 export async function hash(s: string) {
-	// const salt = await bcrypt.genSalt(BCRYPT_SALT_ROUND)
-
 	const hashed = await bcrypt.hash(s, BCRYPT_SALT)
 	return hashed
 }

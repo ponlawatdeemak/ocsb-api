@@ -42,7 +42,7 @@ export class BurntAreaController {
 	) {}
 
 	@Get('hotspot')
-	// @UseGuards(AuthGuard)
+	@UseGuards(AuthGuard)
 	async getHotspot(
 		@Query() payload: GetHotspotBurntAreaDtoIn,
 		@Res() res,
@@ -97,7 +97,7 @@ export class BurntAreaController {
 	}
 
 	@Get('burnt')
-	// @UseGuards(AuthGuard)
+	@UseGuards(AuthGuard)
 	async getBurnt(
 		@Query() payload: GetBurntBurntAreaDtoIn,
 		@Res() res,
@@ -153,7 +153,7 @@ export class BurntAreaController {
 	}
 
 	@Get('plant')
-	// @UseGuards(AuthGuard)
+	@UseGuards(AuthGuard)
 	async getPlant(
 		@Query() payload: GetPlantBurntAreaDtoIn,
 		@Res() res,
@@ -199,7 +199,6 @@ export class BurntAreaController {
 				endDate: payload.endDate,
 			})
 		}
-		queryBuilderYieldPred.limit(100) //TODO
 		const yieldPred: GetPlantBurntAreaDtoOut[] = await queryBuilderYieldPred.getRawMany().then((data) => {
 			return data.map((item) => item.geojson)
 		})
@@ -210,6 +209,7 @@ export class BurntAreaController {
 	}
 
 	@Get('dashboard')
+	@UseGuards(AuthGuard)
 	async getDashBoard(
 		@Query() payload: GetDashBoardBurntAreaDtoIn,
 	): Promise<ResponseDto<GetDashBoardBurntAreaDtoOut>> {
@@ -249,10 +249,10 @@ export class BurntAreaController {
 	}
 
 	@Get('identify')
+	@UseGuards(AuthGuard)
 	async getIdentify(@Query() payload: GetIdentifyBurntAreaDtoIn): Promise<ResponseDto<GetIdentifyBurntAreaDtoOut>> {
-		const queryResult = await this.dataSource
-			.query(
-				` WITH point AS (
+		const queryResult = await this.dataSource.query(
+			` WITH point AS (
 					SELECT ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 32647) AS geom
 				),
 				buffer AS (
@@ -283,23 +283,16 @@ export class BurntAreaController {
 				group by ST_AsGeoJSON(t1.geometry),ST_AsGeoJSON(t2.geometry),ST_AsGeoJSON(t3.geometry),t1.id,t2.id,t3.id
 				order by t1.id,t2.id,t3.id
 			`,
-				[100.6554394, 16.1109496],
-			)
-			// .then((data) =>
-			// 	data.map((item) => {
-			// 		return {
-			// 			...item,
-			// 			st_asgeojson: JSON.parse(item.st_asgeojson),
-			// 		}
-			// 	}),
-			// )
+			[100.6554394, 16.1109496],
+		)
 		return new ResponseDto<GetIdentifyBurntAreaDtoOut>({ data: queryResult })
 	}
 
 	@Get('hotspot-calendar')
+	@UseGuards(AuthGuard)
 	async getHotspotCalendar(
 		@Query() payload: GetHotspotCalendarDtoIn,
-	): Promise<ResponseDto<GetHotspotCalendarDtoOut>> {
+	): Promise<ResponseDto<GetHotspotCalendarDtoOut[]>> {
 		const queryBuilderHotspot = await await this.dataSource
 			.query(
 				`
@@ -307,8 +300,6 @@ export class BurntAreaController {
 				TO_CHAR(sh.acq_date, 'YYYY-MM-DD') AS acq_date
 			FROM 
 				sugarcane.sugarcane.sugarcane_hotspot sh
-			WHERE
-				sh.region_id notnull 
 			GROUP BY 
 				TO_CHAR(sh.acq_date, 'YYYY-MM-DD')
 			ORDER BY 
@@ -318,6 +309,6 @@ export class BurntAreaController {
 			.then((data) => {
 				return data.map((item) => item.acq_date)
 			})
-		return new ResponseDto<GetHotspotCalendarDtoOut>({ data: queryBuilderHotspot })
+		return new ResponseDto<GetHotspotCalendarDtoOut[]>({ data: queryBuilderHotspot })
 	}
 }
