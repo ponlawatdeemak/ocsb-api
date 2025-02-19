@@ -42,7 +42,7 @@ export class BurntAreaController {
 	) {}
 
 	@Get('hotspot')
-	@UseGuards(AuthGuard)
+	// @UseGuards(AuthGuard)
 	async getHotspot(
 		@Query() payload: GetHotspotBurntAreaDtoIn,
 		@Res() res,
@@ -97,7 +97,7 @@ export class BurntAreaController {
 	}
 
 	@Get('burnt')
-	@UseGuards(AuthGuard)
+	// @UseGuards(AuthGuard)
 	async getBurnt(
 		@Query() payload: GetBurntBurntAreaDtoIn,
 		@Res() res,
@@ -153,7 +153,7 @@ export class BurntAreaController {
 	}
 
 	@Get('plant')
-	@UseGuards(AuthGuard)
+	// @UseGuards(AuthGuard)
 	async getPlant(
 		@Query() payload: GetPlantBurntAreaDtoIn,
 		@Res() res,
@@ -252,40 +252,47 @@ export class BurntAreaController {
 	async getIdentify(@Query() payload: GetIdentifyBurntAreaDtoIn): Promise<ResponseDto<GetIdentifyBurntAreaDtoOut>> {
 		const queryResult = await this.dataSource
 			.query(
-				` WITH hotspots AS (
-                    SELECT ST_AsGeoJSON(geometry),
-                    'hotspots' AS source_table
-                    FROM sugarcane.sugarcane.sugarcane_hotspot
-                    WHERE ST_DWithin(geometry, ST_SetSRID(ST_MakePoint($1, $2), 4326), 0.00001)
-                ),
-                burn_area AS (
-                    SELECT ST_AsGeoJSON(geometry),
-                    'burn_area' AS source_table 
-                    FROM sugarcane.sugarcane.sugarcane_ds_burn_area
-                    WHERE ST_DWithin(geometry, ST_SetSRID(ST_MakePoint($1, $2), 4326), 0.00001)
-                ),
-                yield_pred AS (
-                    SELECT ST_AsGeoJSON(geometry),
-                    'yield_pred' AS source_table
-                    FROM sugarcane.sugarcane.sugarcane_ds_yield_pred
-                    WHERE ST_DWithin(geometry, ST_SetSRID(ST_MakePoint($1, $2), 4326), 0.00001)
-                )
-                SELECT * FROM hotspots
-                UNION
-                SELECT * FROM burn_area
-                UNION
-                SELECT * FROM yield_pred;
+				` WITH point AS (
+					SELECT ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 32647) AS geom
+				),
+				buffer AS (
+					SELECT ST_Transform(ST_Buffer(geom, 100), 4326) AS buffered_geom  -- Buffer ด้วยระบบพิกัด UTM แล้วแปลงกลับเป็น 4326
+					FROM point
+				)
+				select
+					t1.id AS table1_id,
+					t2.id AS table2_id,
+					t3.id AS table3_id,
+					ST_AsGeoJSON(t1.geometry)::jsonb AS table1_geometry,
+					ST_AsGeoJSON(t2.geometry)::jsonb AS table2_geometry,
+					ST_AsGeoJSON(t3.geometry)::jsonb AS table3_geometry
+				FROM
+					buffer b
+				LEFT JOIN (
+					SELECT DISTINCT id, geometry
+					FROM sugarcane.sugarcane.sugarcane_hotspot
+				) t1 ON ST_Intersects(t1.geometry, b.buffered_geom)
+				LEFT JOIN (
+					SELECT DISTINCT id, geometry
+					FROM sugarcane.sugarcane.sugarcane_ds_burn_area
+				) t2 ON ST_Intersects(t2.geometry, b.buffered_geom) 
+				LEFT JOIN (
+					SELECT DISTINCT id, geometry
+					FROM sugarcane.sugarcane.sugarcane_ds_yield_pred 
+				) t3 ON ST_Intersects(t3.geometry, b.buffered_geom)
+				group by ST_AsGeoJSON(t1.geometry),ST_AsGeoJSON(t2.geometry),ST_AsGeoJSON(t3.geometry),t1.id,t2.id,t3.id
+				order by t1.id,t2.id,t3.id
 			`,
-				[100.983977445, 15.549116555],
+				[100.6554394, 16.1109496],
 			)
-			.then((data) =>
-				data.map((item) => {
-					return {
-						...item,
-						st_asgeojson: JSON.parse(item.st_asgeojson),
-					}
-				}),
-			)
+			// .then((data) =>
+			// 	data.map((item) => {
+			// 		return {
+			// 			...item,
+			// 			st_asgeojson: JSON.parse(item.st_asgeojson),
+			// 		}
+			// 	}),
+			// )
 		return new ResponseDto<GetIdentifyBurntAreaDtoOut>({ data: queryResult })
 	}
 

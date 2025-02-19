@@ -38,17 +38,12 @@ export class OverviewController {
 
 	@Get('summary')
 	async getSummary(@Query() payload: GetSummaryOverviewDtoIn): Promise<ResponseDto<GetSummaryOverviewDtoOut>> {
-		// year condition row
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
-
-		// ### 1. hotspot
 		const cntHotspot = await this.sugarcaneHotspotEntity.count({
 			where: {
 				acqDate: Between(new Date(yearLookupCondition.hotspotStart), new Date(yearLookupCondition.hotspotEnd)),
 			},
 		})
-
-		// ### 2. พื้นที่ร่องรอยเผาไหม้
 		const burnAreaQuery = await this.dataSource.query(
 			`select COALESCE(SUM(sdba.area_m2),0) as m2,
 				COALESCE(SUM(sdba.area_km2),0) as km2, 
@@ -59,13 +54,9 @@ export class OverviewController {
 			`,
 			[new Date(yearLookupCondition.burnAreaStart), new Date(yearLookupCondition.burnAreaEnd)],
 		)
-
-		// convert string from query result to number type.
 		Object.keys(burnAreaQuery[0]).forEach((key) => {
 			burnAreaQuery[0][key] = Number(burnAreaQuery[0][key])
 		})
-
-		// ### 3. พื้นที่ปลูกอ้อย/ปริมาณอ้อย
 		const yieldPredQuery = await this.dataSource.query(
 			`select SUM(sdyp.area_m2) as m2, 
 				SUM(sdyp.area_km2) as km2, 
@@ -79,12 +70,10 @@ export class OverviewController {
 			[yearLookupCondition.sugarcaneRound, yearLookupCondition.sugarcaneYear],
 		)
 
-		// convert string from query result to number type.
 		Object.keys(yieldPredQuery[0]).forEach((key) => {
 			yieldPredQuery[0][key] = Number(yieldPredQuery[0][key])
 		})
 
-		// format result
 		const data: GetSummaryOverviewDtoOut = {
 			hotspot: cntHotspot,
 			burnArea: burnAreaQuery[0],
@@ -104,7 +93,6 @@ export class OverviewController {
 	async getHeatPoints(
 		@Query() payload: GetHeatPointsOverviewDtoIn,
 	): Promise<ResponseDto<GetHeatPointsOverviewDtoOut[]>> {
-		// year condition row
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 		const queryResult = await this.dataSource.query(
 			`with filtered_data as (
@@ -133,7 +121,6 @@ export class OverviewController {
 			[yearLookupCondition.hotspotStart, yearLookupCondition.hotspotEnd],
 		)
 
-		// transform data
 		const data = queryResult.map((e) => {
 			return {
 				regionId: e.region_id,
@@ -153,7 +140,6 @@ export class OverviewController {
 	async getHeatPointsSugarcane(
 		@Query() payload: GetHeatPointsSugarcaneOverviewDtoIn,
 	): Promise<ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut[]>> {
-		// year condition row
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 		const queryResult = await this.dataSource.query(
 			`SELECT 
@@ -177,7 +163,6 @@ export class OverviewController {
 			[yearLookupCondition.hotspotStart, yearLookupCondition.hotspotEnd],
 		)
 
-		// transform data
 		const data = queryResult.map((e) => {
 			return {
 				regionId: e.region_id,
@@ -259,7 +244,6 @@ export class OverviewController {
 			[payload.id],
 		)
 
-		// transform data
 		const data = queryResult.map((e) => {
 			return {
 				regionId: e.region_id,
@@ -276,9 +260,7 @@ export class OverviewController {
 
 	@Get('plant')
 	async getPlant(@Query() payload: GetPlantOverviewDtoIn): Promise<ResponseDto<GetPlantOverviewDtoOut>> {
-		// year condition row
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
-
 		const queryResult = await this.dataSource.query(
 			`WITH total_area AS ( -- Table Temp ไว้หาค่าพื้นที่ทั้งหมดของแต่ละหน่วย
 					SELECT 
@@ -329,8 +311,6 @@ export class OverviewController {
 			`,
 			[yearLookupCondition.sugarcaneRound, yearLookupCondition.id],
 		)
-		// transform result
-
 		const totalArea = queryResult.reduce(
 			(acc, obj) => {
 				acc.m2 += Number(obj.m2) || 0
