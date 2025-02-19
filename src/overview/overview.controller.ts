@@ -74,7 +74,7 @@ export class OverviewController {
 				SUM(sdyp.production_kg) as kg, 
 				SUM(sdyp.production_ton) as ton
 			from sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
-			where sdyp.cls_round = $1 and EXTRACT(YEAR FROM sdyp.cls_edate) = $2
+			where sdyp.cls_round = $1 and EXTRACT(YEAR FROM sdyp.cls_edate::DATE) = $2
 			`,
 			[yearLookupCondition.sugarcaneRound, yearLookupCondition.sugarcaneYear],
 		)
