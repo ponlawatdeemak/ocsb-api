@@ -3,14 +3,14 @@ import {
 	GetBurntBurntAreaDtoIn,
 	GetDashBoardBurntAreaDtoIn,
 	GetHotspotBurntAreaDtoIn,
-	GetHotspotCalendarDtoIn,
+	GetBurnAreaCalendarDtoIn,
 	GetPlantBurntAreaDtoIn,
 } from '@interface/dto/brunt-area/brunt-area.dto-in'
 import {
 	GetBurntBurntAreaDtoOut,
 	GetDashBoardBurntAreaDtoOut,
 	GetHotspotBurntAreaDtoOut,
-	GetHotspotCalendarDtoOut,
+	GetBurnAreaCalendarDtoOut,
 	GetPlantBurntAreaDtoOut,
 } from '@interface/dto/brunt-area/brunt-area.dto.out'
 import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
@@ -253,27 +253,27 @@ export class BurntAreaController {
 		return new ResponseDto<GetDashBoardBurntAreaDtoOut>({ data: objResponse })
 	}
 
-	@Get('hotspot-calendar')
+	@Get('burn-area-calendar')
 	@UseGuards(AuthGuard)
 	async getHotspotCalendar(
-		@Query() payload: GetHotspotCalendarDtoIn,
-	): Promise<ResponseDto<GetHotspotCalendarDtoOut[]>> {
+		@Query() payload: GetBurnAreaCalendarDtoIn,
+	): Promise<ResponseDto<GetBurnAreaCalendarDtoOut[]>> {
 		const queryBuilderHotspot = await this.dataSource
 			.query(
 				`
 			SELECT 
-				TO_CHAR(sh.acq_date, 'YYYY-MM-DD') AS acq_date
+				TO_CHAR(sdba.detected_d , 'YYYY-MM-DD') AS detected_d
 			FROM 
-				sugarcane.sugarcane.sugarcane_hotspot sh
+				sugarcane.sugarcane.sugarcane_ds_burn_area sdba 
 			GROUP BY 
-				TO_CHAR(sh.acq_date, 'YYYY-MM-DD')
+				TO_CHAR(sdba.detected_d, 'YYYY-MM-DD')
 			ORDER BY 
-				TO_CHAR(sh.acq_date, 'YYYY-MM-DD') ASC;
+				TO_CHAR(sdba.detected_d, 'YYYY-MM-DD') ASC;
 			`,
 			)
 			.then((data) => {
-				return data.map((item) => item.acq_date)
+				return data.map((item) => item.detected_d)
 			})
-		return new ResponseDto<GetHotspotCalendarDtoOut[]>({ data: queryBuilderHotspot })
+		return new ResponseDto<GetBurnAreaCalendarDtoOut[]>({ data: queryBuilderHotspot })
 	}
 }
