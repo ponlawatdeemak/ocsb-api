@@ -4,7 +4,6 @@ import {
 	GetDashBoardBurntAreaDtoIn,
 	GetHotspotBurntAreaDtoIn,
 	GetHotspotCalendarDtoIn,
-	GetIdentifyBurntAreaDtoIn,
 	GetPlantBurntAreaDtoIn,
 } from '@interface/dto/brunt-area/brunt-area.dto-in'
 import {
@@ -12,14 +11,13 @@ import {
 	GetDashBoardBurntAreaDtoOut,
 	GetHotspotBurntAreaDtoOut,
 	GetHotspotCalendarDtoOut,
-	GetIdentifyBurntAreaDtoOut,
 	GetPlantBurntAreaDtoOut,
 } from '@interface/dto/brunt-area/brunt-area.dto.out'
 import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
-import { Controller, Get, Query, UseGuards, Res, BadRequestException } from '@nestjs/common'
+import { Controller, Get, Query, UseGuards, Res } from '@nestjs/common'
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm'
 import { AuthGuard } from 'src/core/auth.guard'
-import { validateDateRange, validatePayload } from 'src/core/utils'
+import { validatePayload } from 'src/core/utils'
 import { Repository, DataSource, Brackets } from 'typeorm'
 import { BurntAreaService } from './burnt-area.service'
 
@@ -60,7 +58,19 @@ export class BurntAreaController {
                 'properties', jsonb_build_object(
                     'id', sh.id,
                     'regionId', sh.region_id,
-                    'date', sh.acq_date
+                    'date', sh.acq_date,
+					'adm1',jsonb_build_object(
+						'en', sh.o_adm1e,
+						'th', sh.o_adm1t
+					),
+					'adm2',jsonb_build_object(
+						'en', sh.o_adm2e,
+						'th', sh.o_adm2t
+					),
+						'adm3',jsonb_build_object(
+						'en', sh.o_adm3e,
+						'th', sh.o_adm3t
+					)
                 ) 
                 ) as geojson
                 `,
@@ -113,15 +123,15 @@ export class BurntAreaController {
                     'id', sdba.id,
                     'regionId', sdba.region_id,
                     'date', sdba.detected_d,
-                    'subDistrict', jsonb_build_object(
+                    'adm3', jsonb_build_object(
                     'en', sdba.o_adm3e ,
                     'th', sdba.o_adm3t
                     ),
-                    'district', jsonb_build_object(
+                    'adm2', jsonb_build_object(
                     'en', sdba.o_adm2e ,
                     'th', sdba.o_adm2t
                     ),
-                    'province', jsonb_build_object(
+                    'adm1', jsonb_build_object(
                     'en', sdba.o_adm1e ,
                     'th', sdba.o_adm1t
                     ),
@@ -169,15 +179,15 @@ export class BurntAreaController {
                     'id', sdyp.id,
                     'regionId', sdyp.region_id,
                     'date', sdyp.cls_edate,
-                    'subDistrict', jsonb_build_object(
+                    'adm3', jsonb_build_object(
                     'en', sdyp.o_adm3e ,
                     'th', sdyp.o_adm3t
                     ),
-                    'district', jsonb_build_object(
+                    'adm2', jsonb_build_object(
                     'en', sdyp.o_adm2e ,
                     'th', sdyp.o_adm2t
                     ),
-                    'province', jsonb_build_object(
+                    'adm1', jsonb_build_object(
                     'en', sdyp.o_adm1e ,
                     'th', sdyp.o_adm1t
                     ),
@@ -216,11 +226,6 @@ export class BurntAreaController {
 		let objResponse = {}
 		const mapTypeFilter = payload.mapType ? validatePayload(payload.mapType) : []
 
-		if (payload.startDate && payload.endDate) {
-			const validateDate = validateDateRange(new Date(payload.startDate), new Date(payload.endDate))
-			if (validateDate) throw new BadRequestException('Date Error')
-		}
-
 		if (mapTypeFilter.includes(mapTypeCode.hotspots)) {
 			const hotspotData = await this.burntAreaService.hotspotService(payload)
 			objResponse = {
@@ -248,52 +253,12 @@ export class BurntAreaController {
 		return new ResponseDto<GetDashBoardBurntAreaDtoOut>({ data: objResponse })
 	}
 
-	@Get('identify')
-	@UseGuards(AuthGuard)
-	async getIdentify(@Query() payload: GetIdentifyBurntAreaDtoIn): Promise<ResponseDto<GetIdentifyBurntAreaDtoOut>> {
-		const queryResult = await this.dataSource.query(
-			` WITH point AS (
-					SELECT ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), 32647) AS geom
-				),
-				buffer AS (
-					SELECT ST_Transform(ST_Buffer(geom, 100), 4326) AS buffered_geom  -- Buffer ด้วยระบบพิกัด UTM แล้วแปลงกลับเป็น 4326
-					FROM point
-				)
-				select
-					t1.id AS table1_id,
-					t2.id AS table2_id,
-					t3.id AS table3_id,
-					ST_AsGeoJSON(t1.geometry)::jsonb AS table1_geometry,
-					ST_AsGeoJSON(t2.geometry)::jsonb AS table2_geometry,
-					ST_AsGeoJSON(t3.geometry)::jsonb AS table3_geometry
-				FROM
-					buffer b
-				LEFT JOIN (
-					SELECT DISTINCT id, geometry
-					FROM sugarcane.sugarcane.sugarcane_hotspot
-				) t1 ON ST_Intersects(t1.geometry, b.buffered_geom)
-				LEFT JOIN (
-					SELECT DISTINCT id, geometry
-					FROM sugarcane.sugarcane.sugarcane_ds_burn_area
-				) t2 ON ST_Intersects(t2.geometry, b.buffered_geom) 
-				LEFT JOIN (
-					SELECT DISTINCT id, geometry
-					FROM sugarcane.sugarcane.sugarcane_ds_yield_pred 
-				) t3 ON ST_Intersects(t3.geometry, b.buffered_geom)
-				group by ST_AsGeoJSON(t1.geometry),ST_AsGeoJSON(t2.geometry),ST_AsGeoJSON(t3.geometry),t1.id,t2.id,t3.id
-				order by t1.id,t2.id,t3.id
-			`,
-			[100.6554394, 16.1109496],
-		)
-		return new ResponseDto<GetIdentifyBurntAreaDtoOut>({ data: queryResult })
-	}
-
 	@Get('hotspot-calendar')
 	@UseGuards(AuthGuard)
 	async getHotspotCalendar(
 		@Query() payload: GetHotspotCalendarDtoIn,
 	): Promise<ResponseDto<GetHotspotCalendarDtoOut[]>> {
-		const queryBuilderHotspot = await await this.dataSource
+		const queryBuilderHotspot = await this.dataSource
 			.query(
 				`
 			SELECT 

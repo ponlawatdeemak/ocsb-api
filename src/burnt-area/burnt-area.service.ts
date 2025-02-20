@@ -2,16 +2,13 @@ import { hotspotTypeCode } from '@interface/config/app.config'
 import { GetDashBoardBurntAreaDtoIn } from '@interface/dto/brunt-area/brunt-area.dto-in'
 import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
 import { Injectable } from '@nestjs/common'
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
-import { generateMonthsFromYear, getStartAndEndOfMonth, sumby, validatePayload } from 'src/core/utils'
-import { Repository, DataSource, Raw, Between, Brackets } from 'typeorm'
+import { InjectRepository } from '@nestjs/typeorm'
+import { generateMonthsFromRange, getStartAndEndOfMonth, sumby, validatePayload } from 'src/core/utils'
+import { Repository, Raw, Between, Brackets } from 'typeorm'
 
 @Injectable()
 export class BurntAreaService {
 	constructor(
-		@InjectDataSource()
-		private readonly dataSource: DataSource,
-
 		@InjectRepository(SugarcaneHotspotEntity)
 		private readonly sugarcaneHotspotEntity: Repository<SugarcaneHotspotEntity>,
 
@@ -71,24 +68,17 @@ export class BurntAreaService {
 
 			queryBuilderHotspot.andWhere(
 				new Brackets((qb) => {
-					if (payload.adm3C) {
-						qb.andWhere(`sh.o_adm3c = :adm3C`, { adm3C: payload.adm3C })
-					}
-					if (payload.adm2C) {
-						qb.andWhere(`sh.o_adm2c = :adm2C`, { adm2C: payload.adm2C })
-					}
-					if (payload.adm1C) {
-						qb.andWhere(`sh.o_adm1c = :adm1C`, { adm1C: payload.adm1C })
+					if (payload.admC) {
+						qb.orWhere(`sh.o_adm3c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sh.o_adm2c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sh.o_adm1c = :admC`, { admC: payload.admC })
 					}
 				}),
 			)
 
 			hotspot = await queryBuilderHotspot.getRawMany()
-
-			const lastYear = new Date().getFullYear() - 1
-			const month = generateMonthsFromYear(
-				payload.startDate ? new Date(payload.startDate).getFullYear() : lastYear,
-			)
+			const today = new Date().toISOString().split('T')[0]
+			const month = generateMonthsFromRange(payload.startDate || today, payload.endDate || today)
 			const calcHotSpot = month.map((item) => {
 				const findData = hotspot.filter((e) => {
 					const { startDate, endDate } = getStartAndEndOfMonth(item)
@@ -127,14 +117,10 @@ export class BurntAreaService {
 			.where('sdba.region_id IS NOT NULL')
 			.andWhere(
 				new Brackets((qb) => {
-					if (payload.adm3C) {
-						qb.andWhere(`sdba.o_adm3c = :adm3C`, { adm3C: payload.adm3C })
-					}
-					if (payload.adm2C) {
-						qb.andWhere(`sdba.o_adm2c = :adm2C`, { adm2C: payload.adm2C })
-					}
-					if (payload.adm1C) {
-						qb.andWhere(`sdba.o_adm1c = :adm1C`, { adm1C: payload.adm1C })
+					if (payload.admC) {
+						qb.orWhere(`sdba.o_adm3c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sdba.o_adm2c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sdba.o_adm1c = :admC`, { admC: payload.admC })
 					}
 				}),
 			)
@@ -147,8 +133,8 @@ export class BurntAreaService {
 		}
 
 		const burnArea = await queryBuilderBurnArea.getRawMany()
-		const lastYear = new Date().getFullYear() - 1
-		const month = generateMonthsFromYear(payload.startDate ? new Date(payload.startDate).getFullYear() : lastYear)
+		const today = new Date().toISOString().split('T')[0]
+		const month = generateMonthsFromRange(payload.startDate || today, payload.endDate || today)
 		const calcBurnArea = month.map((item) => {
 			const findData = burnArea.filter((e) => {
 				const { startDate, endDate } = getStartAndEndOfMonth(item)
@@ -206,14 +192,10 @@ export class BurntAreaService {
 			.where('syp.region_id IS NOT NULL')
 			.andWhere(
 				new Brackets((qb) => {
-					if (payload.adm3C) {
-						qb.andWhere(`syp.o_adm3c = :adm3C`, { adm3C: payload.adm3C })
-					}
-					if (payload.adm2C) {
-						qb.andWhere(`syp.o_adm2c = :adm2C`, { adm2C: payload.adm2C })
-					}
-					if (payload.adm1C) {
-						qb.andWhere(`syp.o_adm1c = :adm1C`, { adm1C: payload.adm1C })
+					if (payload.admC) {
+						qb.orWhere(`syp.o_adm3c = :admC`, { admC: payload.admC })
+						qb.orWhere(`syp.o_adm2c = :admC`, { admC: payload.admC })
+						qb.orWhere(`syp.o_adm1c = :admC`, { admC: payload.admC })
 					}
 				}),
 			)

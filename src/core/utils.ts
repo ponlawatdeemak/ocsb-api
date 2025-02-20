@@ -66,6 +66,42 @@ export function generateMonthsFromYear(year: number): string[] {
 	return result
 }
 
+export function generateMonthsFromRange(startDate: string, endDate: string): string[] {
+	const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+	const result: string[] = []
+
+	// แปลง startDate และ endDate เป็นข้อมูลตัวเลข
+	const [startYear, startMonth] = startDate.split('-').map(Number)
+	const [endYear, endMonth] = endDate.split('-').map(Number)
+
+	let currentYear = startYear
+	let currentMonth = startMonth - 1 // ใช้ index 0 สำหรับ array ของ months
+
+	// วนลูปจนถึง endDate
+	while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth - 1)) {
+		result.push(`${currentYear}-${months[currentMonth]}-01`)
+		currentMonth++
+
+		// ถ้าเดือนเกิน 12 ให้เปลี่ยนเป็นเดือนมกราคมของปีถัดไป
+		if (currentMonth === 12) {
+			currentMonth = 0
+			currentYear++
+		}
+	}
+
+	// เติมเดือนที่เหลือให้ครบ 12 เดือน ถ้าอยู่ในปีเดียวกัน
+	while (result.length % 12 !== 0) {
+		result.push(`${currentYear}-${months[currentMonth]}-01`)
+		currentMonth++
+		if (currentMonth === 12) {
+			currentMonth = 0
+			currentYear++
+		}
+	}
+
+	return result
+}
+
 export function getStartAndEndOfMonth(dateString: string): { startDate: Date; endDate: Date } {
 	const date = new Date(dateString)
 
