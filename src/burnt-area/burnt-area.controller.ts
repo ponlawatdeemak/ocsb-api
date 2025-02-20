@@ -22,6 +22,7 @@ import { AuthGuard } from 'src/core/auth.guard'
 import { validateDateRange, validatePayload } from 'src/core/utils'
 import { Repository, DataSource, Brackets } from 'typeorm'
 import { BurntAreaService } from './burnt-area.service'
+import { errorResponse } from '@interface/config/error.config'
 
 @Controller('brunt-area')
 export class BurntAreaController {
@@ -60,7 +61,19 @@ export class BurntAreaController {
                 'properties', jsonb_build_object(
                     'id', sh.id,
                     'regionId', sh.region_id,
-                    'date', sh.acq_date
+                    'date', sh.acq_date,
+					'adm1',jsonb_build_object(
+						'en', sh.o_adm1e,
+						'th', sh.o_adm1t
+					),
+					'adm2',jsonb_build_object(
+						'en', sh.o_adm2e,
+						'th', sh.o_adm2t
+					),
+						'adm3',jsonb_build_object(
+						'en', sh.o_adm3e,
+						'th', sh.o_adm3t
+					)
                 ) 
                 ) as geojson
                 `,
@@ -113,15 +126,15 @@ export class BurntAreaController {
                     'id', sdba.id,
                     'regionId', sdba.region_id,
                     'date', sdba.detected_d,
-                    'subDistrict', jsonb_build_object(
+                    'adm3', jsonb_build_object(
                     'en', sdba.o_adm3e ,
                     'th', sdba.o_adm3t
                     ),
-                    'district', jsonb_build_object(
+                    'adm2', jsonb_build_object(
                     'en', sdba.o_adm2e ,
                     'th', sdba.o_adm2t
                     ),
-                    'province', jsonb_build_object(
+                    'adm1', jsonb_build_object(
                     'en', sdba.o_adm1e ,
                     'th', sdba.o_adm1t
                     ),
@@ -169,15 +182,15 @@ export class BurntAreaController {
                     'id', sdyp.id,
                     'regionId', sdyp.region_id,
                     'date', sdyp.cls_edate,
-                    'subDistrict', jsonb_build_object(
+                    'adm3', jsonb_build_object(
                     'en', sdyp.o_adm3e ,
                     'th', sdyp.o_adm3t
                     ),
-                    'district', jsonb_build_object(
+                    'adm2', jsonb_build_object(
                     'en', sdyp.o_adm2e ,
                     'th', sdyp.o_adm2t
                     ),
-                    'province', jsonb_build_object(
+                    'adm1', jsonb_build_object(
                     'en', sdyp.o_adm1e ,
                     'th', sdyp.o_adm1t
                     ),
@@ -218,7 +231,7 @@ export class BurntAreaController {
 
 		if (payload.startDate && payload.endDate) {
 			const validateDate = validateDateRange(new Date(payload.startDate), new Date(payload.endDate))
-			if (validateDate) throw new BadRequestException('Date Error')
+			if (validateDate) throw new BadRequestException(errorResponse.INVALID_DATE)
 		}
 
 		if (mapTypeFilter.includes(mapTypeCode.hotspots)) {
@@ -293,7 +306,7 @@ export class BurntAreaController {
 	async getHotspotCalendar(
 		@Query() payload: GetHotspotCalendarDtoIn,
 	): Promise<ResponseDto<GetHotspotCalendarDtoOut[]>> {
-		const queryBuilderHotspot = await await this.dataSource
+		const queryBuilderHotspot = await this.dataSource
 			.query(
 				`
 			SELECT 

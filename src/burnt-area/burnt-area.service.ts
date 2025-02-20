@@ -71,14 +71,10 @@ export class BurntAreaService {
 
 			queryBuilderHotspot.andWhere(
 				new Brackets((qb) => {
-					if (payload.adm3C) {
-						qb.andWhere(`sh.o_adm3c = :adm3C`, { adm3C: payload.adm3C })
-					}
-					if (payload.adm2C) {
-						qb.andWhere(`sh.o_adm2c = :adm2C`, { adm2C: payload.adm2C })
-					}
-					if (payload.adm1C) {
-						qb.andWhere(`sh.o_adm1c = :adm1C`, { adm1C: payload.adm1C })
+					if (payload.admC) {
+						qb.orWhere(`sh.o_adm3c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sh.o_adm2c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sh.o_adm1c = :admC`, { admC: payload.admC })
 					}
 				}),
 			)
@@ -127,14 +123,10 @@ export class BurntAreaService {
 			.where('sdba.region_id IS NOT NULL')
 			.andWhere(
 				new Brackets((qb) => {
-					if (payload.adm3C) {
-						qb.andWhere(`sdba.o_adm3c = :adm3C`, { adm3C: payload.adm3C })
-					}
-					if (payload.adm2C) {
-						qb.andWhere(`sdba.o_adm2c = :adm2C`, { adm2C: payload.adm2C })
-					}
-					if (payload.adm1C) {
-						qb.andWhere(`sdba.o_adm1c = :adm1C`, { adm1C: payload.adm1C })
+					if (payload.admC) {
+						qb.orWhere(`sdba.o_adm3c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sdba.o_adm2c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sdba.o_adm1c = :admC`, { admC: payload.admC })
 					}
 				}),
 			)
@@ -206,14 +198,10 @@ export class BurntAreaService {
 			.where('syp.region_id IS NOT NULL')
 			.andWhere(
 				new Brackets((qb) => {
-					if (payload.adm3C) {
-						qb.andWhere(`syp.o_adm3c = :adm3C`, { adm3C: payload.adm3C })
-					}
-					if (payload.adm2C) {
-						qb.andWhere(`syp.o_adm2c = :adm2C`, { adm2C: payload.adm2C })
-					}
-					if (payload.adm1C) {
-						qb.andWhere(`syp.o_adm1c = :adm1C`, { adm1C: payload.adm1C })
+					if (payload.admC) {
+						qb.orWhere(`syp.o_adm3c = :admC`, { admC: payload.admC })
+						qb.orWhere(`syp.o_adm2c = :admC`, { admC: payload.admC })
+						qb.orWhere(`syp.o_adm1c = :admC`, { admC: payload.admC })
 					}
 				}),
 			)
