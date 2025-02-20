@@ -39,12 +39,14 @@ export class LookupController {
 						ba.o_adm1c, 
 						ba.o_adm1t, 
 						ba.o_adm1e,
-						NULL::bigint AS o_adm2c,   -- เปลี่ยนเป็น NULL::bigint
+						NULL::bigint AS o_adm2c,
 						NULL::text AS o_adm2t, 
 						NULL::text AS o_adm2e, 
-						NULL::bigint AS o_adm3c,   -- เปลี่ยนเป็น NULL::bigint
-						NULL::text AS o_adm3t, 
-						1 AS level
+						NULL::bigint AS o_adm3c,
+						NULL::text AS o_adm3t,
+						1 AS level,
+						ST_Y(ST_Centroid(ba.geometry)) AS latitude,   -- คำนวณค่ากลาง latitude
+						ST_X(ST_Centroid(ba.geometry)) AS longitude   -- คำนวณค่ากลาง longitude
 					FROM 
 						sugarcane.sugarcane.boundary_adm1 ba
 					WHERE 
@@ -60,9 +62,11 @@ export class LookupController {
 						ba2.o_adm2c,
 						ba2.o_adm2t, 
 						ba2.o_adm2e, 
-						NULL::bigint AS o_adm3c,   -- เปลี่ยนเป็น NULL::bigint
-						NULL::text AS o_adm3t, 
-						2 AS level
+						NULL::bigint AS o_adm3c,
+						NULL::text AS o_adm3t,
+						2 AS level,
+						ST_Y(ST_Centroid(ba2.geometry)) AS latitude,   -- คำนวณ latitude จาก geometry ของเขตอำเภอ
+						ST_X(ST_Centroid(ba2.geometry)) AS longitude   -- คำนวณ longitude จาก geometry ของเขตอำเภอ
 					FROM 
 						sugarcane.sugarcane.boundary_adm2 ba2
 					JOIN 
@@ -84,8 +88,10 @@ export class LookupController {
 						ba2.o_adm2t, 
 						ba2.o_adm2e, 
 						ba3.o_adm3c,
-						ba3.o_adm3t, 
-						3 AS level
+						ba3.o_adm3t,
+						3 AS level,
+						ST_Y(ST_Centroid(ba3.geometry)) AS latitude,   -- คำนวณ latitude จาก geometry ของเขตตำบล
+						ST_X(ST_Centroid(ba3.geometry)) AS longitude   -- คำนวณ longitude จาก geometry ของเขตตำบล
 					FROM 
 						sugarcane.sugarcane.boundary_adm3 ba3
 					JOIN 
@@ -127,6 +133,7 @@ export class LookupController {
 							en: `${item.o_adm1e} ${item.o_adm2e ? item.o_adm2e : ''} ${item.o_adm3e ? item.o_adm3e : ''}`.trim(),
 							th: `${item.o_adm1t} ${item.o_adm2t ? item.o_adm2t : ''} ${item.o_adm3t ? item.o_adm3t : ''}`.trim(),
 						},
+						geometry: [item.longitude, item.latitude],
 					}
 				})
 			})
