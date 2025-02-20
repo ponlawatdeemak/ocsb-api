@@ -125,3 +125,12 @@ export function sumby(data, key) {
 	}, 0)
 	return sum
 }
+
+export function convertPolygonToWKT(polygon) {
+	if (!Array.isArray(polygon) || polygon.length === 0) {
+		throw new Error('Invalid polygon data')
+	}
+	const coordinates = polygon.map(([lon, lat]) => `${lon} ${lat}`).join(', ')
+	const wktPolygon = `POLYGON((${coordinates}))`
+	return wktPolygon
+}
