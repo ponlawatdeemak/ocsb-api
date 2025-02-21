@@ -266,7 +266,7 @@ export class BurntAreaController {
 	}
 
 	@Get('dashboard')
-	// @UseGuards(AuthGuard)
+	@UseGuards(AuthGuard)
 	async getDashBoard(
 		@Query() payload: GetDashBoardBurntAreaDtoIn,
 	): Promise<ResponseDto<GetDashBoardBurntAreaDtoOut>> {
