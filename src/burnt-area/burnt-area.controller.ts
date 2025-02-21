@@ -83,7 +83,7 @@ export class BurntAreaController {
 						if (inSugarcaneFilter.length !== hotspotType.length) {
 							if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
 								qb.where('sh.in_sugarcane = true')
-							} else if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
+							} else if (inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)) {
 								qb.where('sh.in_sugarcane = false')
 							}
 						}
