@@ -134,3 +134,18 @@ export function convertPolygonToWKT(polygon) {
 	const wktPolygon = `POLYGON((${coordinates}))`
 	return wktPolygon
 }
+
+export function validateDate(startDate: string, endDate: string) {
+	const start = new Date(startDate)
+	const end = new Date(endDate)
+
+	if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+		return true
+	}
+
+	const oneYearInMs = 365 * 24 * 60 * 60 * 1000
+
+	if (end.getTime() - start.getTime() > oneYearInMs) {
+		return true
+	}
+}
