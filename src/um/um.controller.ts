@@ -151,11 +151,11 @@ export class UMController {
 	@Post()
 	@UseGuards(AuthGuard)
 	async post(@Body() payload: PostUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostUMDtoOut>> {
-		const cntEmail = await this.userEntity.countBy({ email: payload.email })
+		const cntEmail = await this.userEntity.countBy({ email: payload.email, isDeleted: false })
 		if (cntEmail > 0) {
 			throw new BadRequestException(errorResponse.USER_EMAIL_DUPLICATED)
 		}
-		const cntPhone = await this.userEntity.countBy({ phone: payload.phone })
+		const cntPhone = await this.userEntity.countBy({ phone: payload.phone, isDeleted: false })
 		if (cntPhone > 0) {
 			throw new BadRequestException(errorResponse.USER_PHONE_DUPLICATED)
 		}
@@ -247,12 +247,6 @@ export class UMController {
 		return new ResponseDto({ data: { id: userId } })
 	}
 
-	// @Patch('/:userId')
-	// @UseGuards(AuthGuard)
-	// async patch(@Request() req, @User() user: UserMeta): Promise<ResponseDto<StatustoOut>> {
-	// 	return new ResponseDto({ data: { success: true } })
-	// }
-
 	@Delete('/:userId')
 	@UseGuards(AuthGuard)
 	async delete(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteUMDtoOut>> {
@@ -264,7 +258,6 @@ export class UMController {
 			existingUser.updatedBy = { userId: user?.id }
 			existingUser.updatedAt = new Date()
 
-			// บันทึกข้อมูลใหม่
 			await transactionalEntityManager.save(existingUser)
 		})
 
@@ -370,7 +363,7 @@ export class UMController {
 				totalRow: totalRow,
 				totalImportableRow: totalImportableRow,
 				totalNonImportableRow: totalNonImportableRow,
-				errorList: errorList, // Optional: list of all validation errors found
+				errorList: errorList,
 			},
 		})
 	}
@@ -407,17 +400,12 @@ export class UMController {
 			const worksheet: XLSX.WorkSheet = wb.Sheets[sheetName]
 			const jsonData = XLSX.utils.sheet_to_json(worksheet)
 			const arrayOfObject = []
-			// Loop Data ที่ได้จาก Excel
 			jsonData.forEach((item) => {
 				const object = {}
 				importUserTemplate.forEach((config) => {
-					// Check ก่อนว่ามี key ไหม
 					if (item[config.title] !== null || item[config.title] !== undefined || item[config.title] !== '') {
-						// Check validator คือ Lookup
 						if (config.validator.includes(ImportValidatorType.Lookup)) {
-							// เอา Data จาก Excel ไปหาข้อมูลตาม look up
 							if (config.fieldName === 'position') {
-								//ตำแหน่ง
 								const objPosition = position.find(
 									(p) =>
 										p.positionName.trim() === item?.[config.title]?.trim() ||
@@ -428,7 +416,6 @@ export class UMController {
 							}
 
 							if (config.fieldName === 'region') {
-								//ภาค
 								const objRegion = region.find(
 									(r) =>
 										r.regionName.trim() === item?.[config.title]?.trim() ||
@@ -439,7 +426,6 @@ export class UMController {
 							}
 
 							if (config.fieldName === 'regions') {
-								//ภูมิภาคที่ดูแล
 								const splitRegion = item?.[config.title]?.toString()?.split(',')
 
 								const res = region?.filter((r) => {
@@ -450,14 +436,12 @@ export class UMController {
 							}
 
 							if (config.fieldName === 'role') {
-								//สิทธ์การเข้าถึง
 								const objRole = role.find((r) => r?.roleName?.trim() === item?.[config.title]?.trim())
 
 								object[config.fieldName] = objRole
 							}
 
 							if (config.fieldName === 'province') {
-								//จังหวัด
 								const objProvince = province.find(
 									(r) =>
 										r?.provinceName?.trim() === item?.[config.title]?.trim() ||
@@ -483,11 +467,9 @@ export class UMController {
 				arrayOfObject.push(object)
 			})
 
-			// start transcation
 			await this.entityManager.transaction(async (transactionalEntityManager) => {
 				const list = transactionalEntityManager.create(UsersEntity, arrayOfObject)
 
-				// import station
 				await transactionalEntityManager.save(list)
 			})
 
@@ -499,7 +481,6 @@ export class UMController {
 	}
 
 	@Get('/img/:userId')
-	// @UseGuards(AuthGuard)
 	async getImage(@Request() req, @Res() res) {
 		const params: GetImageUserDtoIn = req.params
 		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
@@ -509,7 +490,7 @@ export class UMController {
 		}
 		res.setHeader('Content-Type', 'image/png')
 		const imageBuffer = Buffer.from(existingUser.img, 'base64')
-		res.setHeader('Cache-Control', 'public, max-age=3600') // cache in browser 1H
+		res.setHeader('Cache-Control', 'public, max-age=3600')
 		return res.send(imageBuffer)
 	}
 
@@ -560,12 +541,10 @@ export class UMController {
 	@UseGuards(AuthGuard)
 	async active(@Body() payload: PostActiveUMDtoIn, @User() user: UserMeta): Promise<ResponseDto<PostActiveUMDtoOut>> {
 		const userIds = payload.userIds.split(' ').join('').split(',')
-		// Search App user
 		const existingUser = await this.userEntity.find({ where: { userId: In(userIds) } })
 
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 
-		// edit active
 		existingUser.forEach((item) => {
 			item.isActive = payload.isActive
 			item.updatedAt = new Date()
@@ -573,7 +552,6 @@ export class UMController {
 		})
 
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
-			// save
 			await transactionalEntityManager.save(existingUser)
 		})
 

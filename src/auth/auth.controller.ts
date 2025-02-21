@@ -15,7 +15,7 @@ import {
 	ResetPasswordAuthDtoOut,
 	VerifyTokenAuthDtoOut,
 } from '@interface/dto/auth/auth.dto-out'
-import { UsersEntity } from '@interface/entities'
+import { BoundaryRegionEntity, UsersEntity } from '@interface/entities'
 import { Body, Controller, Post, UnauthorizedException, BadRequestException, Put } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
@@ -38,6 +38,9 @@ export class AuthController {
 
 		@InjectRepository(UsersEntity)
 		private readonly userEntity: Repository<UsersEntity>,
+
+		@InjectRepository(BoundaryRegionEntity)
+		private readonly boundaryRegionEntity: Repository<BoundaryRegionEntity>,
 	) {}
 
 	@Post('/hash-password')
@@ -49,7 +52,6 @@ export class AuthController {
 	@Post('/login')
 	async login(@Body() body: LoginAuthDtoIn): Promise<ResponseDto<LoginAuthDtoOut>> {
 		const { email, password } = body
-		// const user = await this.userEntity.findOne({ where: { email, isDeleted: false, isActive: true } })
 		const user = await this.userEntity
 			.createQueryBuilder('users')
 			.select([
@@ -65,12 +67,26 @@ export class AuthController {
 			.leftJoinAndSelect('users.role', 'role')
 			.leftJoinAndSelect('users.position', 'position')
 			.leftJoinAndSelect('users.region', 'region')
+			.leftJoinAndSelect('users.regions', 'regions')
 			.where({ email: email, isDeleted: false, isActive: true })
 			.getOne()
-
 		if (!user) {
 			throw new UnauthorizedException(errorResponse.INCORRECT_CREDENTIALS)
 		}
+		const getPosition = await this.boundaryRegionEntity
+			.createQueryBuilder('br')
+			.select(
+				`
+					ST_Y(ST_Centroid(br.geometry)) AS latitude,  
+					ST_X(ST_Centroid(br.geometry)) AS longitude
+				`,
+			)
+			.where('br.region_id = :id', {
+				id: user.regions[0].regionId,
+			})
+			.getRawOne()
+		console.log('getPosition', getPosition)
+
 		const isPasswordValid = await bcrypt.compare(password, user.password)
 		if (!isPasswordValid) {
 			throw new UnauthorizedException(errorResponse.INCORRECT_CREDENTIALS)
@@ -90,6 +106,7 @@ export class AuthController {
 			...user,
 			password: undefined,
 			userId: undefined,
+			geometry: [getPosition.longitude, getPosition.latitude],
 		}
 		const data: LoginAuthDtoOut = { id: user.userId, accessToken, refreshToken, ...userOut, hasImage }
 		return new ResponseDto({ data })
@@ -129,22 +146,18 @@ export class AuthController {
 		const user = await this.userEntity.findOne({ where: { email, isDeleted: false, isActive: true } })
 		if (!user) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 
-		// read config
 		const RESET_PASSWORD_TIMEOUT = this.config.get<number>('RESET_PASSWORD_TIMEOUT')
 		const RESET_PASSWORD_FRONTEND_URL = this.config.get<number>('RESET_PASSWORD_FRONTEND_URL')
 
-		// genereate token and link
 		const resetToken = generateTokenHex(16)
 		const resetLink = `${RESET_PASSWORD_FRONTEND_URL}?token=${resetToken}`
 
 		const now = new Date()
 
-		// set to user row
 		user.resetPasswordExpire = new Date(now.getTime() + 60 * 60 * 1000 * RESET_PASSWORD_TIMEOUT)
 		user.resetPasswordToken = resetToken
 		await this.userEntity.save(user)
 
-		// send mail
 		await this.mailService.sendResetPassword(user.email, user.firstName, resetLink, RESET_PASSWORD_TIMEOUT)
 
 		return new ResponseDto({ data: { success: true } })
@@ -173,27 +186,17 @@ export class AuthController {
 				resetPasswordToken,
 				isDeleted: false,
 			})
-			// validate
 			if (!user) throw new BadRequestException(errorResponse.INVALID_TOKEN)
 
 			const now = new Date()
 			if (now > user.resetPasswordExpire) throw new BadRequestException(errorResponse.EXPIRED_TOKEN)
 
-			// set user row
 			user.password = await hash(payload.newPassword)
 			user.resetPasswordToken = null
 			user.resetPasswordExpire = null
 			user.updatedBy = { userId: user.userId }
 			user.updatedAt = new Date()
 			await transactionalEntityManager.save(user)
-
-			// create log
-			// const newLog = new LogUserEntity()
-			// newLog.operatedAccount = user.email
-			// newLog.operatedBy = { id: user.id }
-			// newLog.operatedDt = new Date()
-			// newLog.type = { id: LutLogUserType.resetPassword }
-			// await transactionalEntityManager.save(newLog)
 		})
 
 		return new ResponseDto({ data: { success: true } })

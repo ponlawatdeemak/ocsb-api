@@ -8,7 +8,6 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
 	private readonly config: ConfigService
 
 	public createTypeOrmOptions(): TypeOrmModuleOptions {
-		const envSslbase64 = this.config.get<string>('DATABASE_SSL_CERT')
 		return {
 			type: 'postgres',
 			host: this.config.get<string>('DATABASE_HOST'),
@@ -22,9 +21,6 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
 			logger: 'debug',
 			logging: 'all',
 			autoLoadEntities: true,
-			// ssl: envSslbase64 ? { ca: Buffer.from(envSslbase64, 'base64').toString('ascii') } : false,
-			// synchronize: true, // never use TRUE in production!
-			//   ref: https://stackoverflow.com/questions/65222981/typeorm-synchronize-in-production
 		}
 	}
 }
