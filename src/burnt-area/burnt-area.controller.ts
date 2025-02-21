@@ -3,7 +3,6 @@ import {
 	GetBurntBurntAreaDtoIn,
 	GetDashBoardBurntAreaDtoIn,
 	GetHotspotBurntAreaDtoIn,
-	GetBurnAreaCalendarDtoIn,
 	GetPlantBurntAreaDtoIn,
 } from '@interface/dto/brunt-area/brunt-area.dto-in'
 import {
@@ -14,12 +13,13 @@ import {
 	GetPlantBurntAreaDtoOut,
 } from '@interface/dto/brunt-area/brunt-area.dto.out'
 import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
-import { Controller, Get, Query, UseGuards, Res } from '@nestjs/common'
+import { Controller, Get, Query, UseGuards, Res, BadRequestException } from '@nestjs/common'
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm'
 import { AuthGuard } from 'src/core/auth.guard'
 import { convertPolygonToWKT, validatePayload } from 'src/core/utils'
 import { Repository, DataSource, Brackets } from 'typeorm'
 import { BurntAreaService } from './burnt-area.service'
+import { errorResponse } from '@interface/config/error.config'
 
 @Controller('brunt-area')
 export class BurntAreaController {
@@ -48,6 +48,10 @@ export class BurntAreaController {
 		const inSugarcaneFilter = payload?.inSugarcan ? validatePayload(payload?.inSugarcan) : []
 		let hotspots: GetHotspotBurntAreaDtoOut[] = []
 		if (inSugarcaneFilter.length !== 0) {
+			if (!payload.admC && !payload.polygon) {
+				throw new BadRequestException(errorResponse.INVALID_GEOMETRY)
+			}
+
 			const queryBuilderHotspot = await this.sugarcaneHotspotEntity
 				.createQueryBuilder('sh')
 				.select(
@@ -96,11 +100,17 @@ export class BurntAreaController {
 					endDate: payload.endDate,
 				})
 			}
-			if (payload.polygon) {
-				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-				queryBuilderHotspot.andWhere('ST_Within(sh.geometry, ST_GeomFromText(:polygon, 4326))', {
-					polygon: formatePolygon,
+			if (payload.admC) {
+				queryBuilderHotspot.andWhere('sh.o_adm1c = :admc or sh.o_adm2c = :admc or sh.o_adm3c = :admc', {
+					admc: payload.admC,
 				})
+			} else {
+				if (payload.polygon) {
+					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+					queryBuilderHotspot.andWhere('ST_Within(sh.geometry, ST_GeomFromText(:polygon, 4326))', {
+						polygon: formatePolygon,
+					})
+				}
 			}
 			hotspots = await queryBuilderHotspot.getRawMany().then((data) => {
 				return data.map((item) => item.geojson)
@@ -118,6 +128,9 @@ export class BurntAreaController {
 		@Query() payload: GetBurntBurntAreaDtoIn,
 		@Res() res,
 	): Promise<ResponseDto<GetBurntBurntAreaDtoOut[]>> {
+		if (!payload.admC && !payload.polygon) {
+			throw new BadRequestException(errorResponse.INVALID_GEOMETRY)
+		}
 		const queryBuilderBurnArea = await this.sugarcaneDsBurnAreaEntity
 			.createQueryBuilder('sdba')
 			.select(
@@ -159,11 +172,17 @@ export class BurntAreaController {
 			})
 		}
 
-		if (payload.polygon) {
-			const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-			queryBuilderBurnArea.andWhere('ST_Within(sdba.geometry, ST_GeomFromText(:polygon, 4326))', {
-				polygon: formatePolygon,
+		if (payload.admC) {
+			queryBuilderBurnArea.andWhere('sdba.o_adm1c = :admc or sdba.o_adm2c = :admc or sdba.o_adm3c = :admc', {
+				admc: payload.admC,
 			})
+		} else {
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderBurnArea.andWhere('ST_Within(sdba.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
+				})
+			}
 		}
 
 		const burnArea: GetBurntBurntAreaDtoOut[] = await queryBuilderBurnArea.getRawMany().then((data) => {
@@ -181,6 +200,9 @@ export class BurntAreaController {
 		@Query() payload: GetPlantBurntAreaDtoIn,
 		@Res() res,
 	): Promise<ResponseDto<GetPlantBurntAreaDtoOut[]>> {
+		if (!payload.admC && !payload.polygon) {
+			throw new BadRequestException(errorResponse.INVALID_GEOMETRY)
+		}
 		const queryBuilderYieldPred = await this.sugarcaneDsYieldPredEntity
 			.createQueryBuilder('sdyp')
 			.select(
@@ -223,11 +245,17 @@ export class BurntAreaController {
 			})
 		}
 
-		if (payload.polygon) {
-			const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-			queryBuilderYieldPred.andWhere('ST_Within(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
-				polygon: formatePolygon,
+		if (payload.admC) {
+			queryBuilderYieldPred.andWhere('sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc', {
+				admc: payload.admC,
 			})
+		} else {
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderYieldPred.andWhere('ST_Within(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
+				})
+			}
 		}
 
 		const yieldPred: GetPlantBurntAreaDtoOut[] = await queryBuilderYieldPred.getRawMany().then((data) => {
@@ -277,9 +305,7 @@ export class BurntAreaController {
 
 	@Get('burn-area-calendar')
 	@UseGuards(AuthGuard)
-	async getHotspotCalendar(
-		@Query() payload: GetBurnAreaCalendarDtoIn,
-	): Promise<ResponseDto<GetBurnAreaCalendarDtoOut[]>> {
+	async getHotspotCalendar(): Promise<ResponseDto<GetBurnAreaCalendarDtoOut[]>> {
 		const queryBuilderHotspot = await this.dataSource
 			.query(
 				`
