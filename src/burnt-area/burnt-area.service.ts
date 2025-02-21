@@ -23,29 +23,6 @@ export class BurntAreaService {
 		let hotspot = []
 		const inSugarcaneFilter = payload?.inSugarcan ? validatePayload(payload?.inSugarcan) : []
 		if (inSugarcaneFilter.length !== 0) {
-			let countHotspot = 0
-			const queryBuilderHotspotCount = this.sugarcaneHotspotEntity
-				.createQueryBuilder('sh')
-				.where('sh.region_id IS NOT NULL')
-
-			if (payload.startDate && payload.endDate) {
-				queryBuilderHotspotCount.andWhere('DATE(sh.acq_date) BETWEEN :startDate AND :endDate', {
-					startDate: payload.startDate,
-					endDate: payload.endDate,
-				})
-			}
-
-			queryBuilderHotspotCount.andWhere(
-				new Brackets((qb) => {
-					if (payload.admC) {
-						qb.orWhere(`sh.o_adm3c = :admC`, { admC: payload.admC })
-						qb.orWhere(`sh.o_adm2c = :admC`, { admC: payload.admC })
-						qb.orWhere(`sh.o_adm1c = :admC`, { admC: payload.admC })
-					}
-				}),
-			)
-			countHotspot = await queryBuilderHotspotCount.getCount()
-
 			const queryBuilderHotspot = this.sugarcaneHotspotEntity
 				.createQueryBuilder('sh')
 				.select(
@@ -61,7 +38,7 @@ export class BurntAreaService {
 						if (inSugarcaneFilter.length !== hotspotType.length) {
 							if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
 								qb.where('sh.in_sugarcane = true')
-							} else if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
+							} else if (inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)) {
 								qb.where('sh.in_sugarcane = false')
 							}
 						}
@@ -86,6 +63,7 @@ export class BurntAreaService {
 			)
 
 			hotspot = await queryBuilderHotspot.getRawMany()
+
 			const today = new Date().toISOString().split('T')[0]
 			const month = generateMonthsFromRange(payload.startDate || today, payload.endDate || today)
 			const calcHotSpot = month.map((item) => {
@@ -102,7 +80,7 @@ export class BurntAreaService {
 			})
 
 			return {
-				total: countHotspot,
+				total: hotspot.length,
 				inSugarcane: hotspot.filter((item) => item.in_sugarcane === true).length,
 				notInSugarcane: hotspot.filter((item) => item.in_sugarcane === false).length,
 				list: calcHotSpot,
