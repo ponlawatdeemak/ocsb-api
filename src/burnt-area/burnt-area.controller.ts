@@ -120,7 +120,7 @@ export class BurntAreaController {
 	}
 
 	@Get('burnt')
-	// @UseGuards(AuthGuard)
+	@UseGuards(AuthGuard)
 	async getBurnt(
 		@Query() payload: GetBurntBurntAreaDtoIn,
 		@Res() res,
