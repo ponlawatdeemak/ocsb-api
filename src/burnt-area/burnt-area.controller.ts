@@ -1,4 +1,4 @@
-import { hotspotTypeCode, mapTypeCode, ResponseDto } from '@interface/config/app.config'
+import { hotspotType, hotspotTypeCode, mapTypeCode, ResponseDto } from '@interface/config/app.config'
 import {
 	GetBurntBurntAreaDtoIn,
 	GetDashBoardBurntAreaDtoIn,
@@ -82,15 +82,12 @@ export class BurntAreaController {
 				.where('sh.region_id IS NOT NULL')
 				.andWhere(
 					new Brackets((qb) => {
-						if (
-							inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan) &&
-							inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)
-						) {
-							qb.where('1 = 1')
-						} else if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
-							qb.where('sh.in_sugarcane = true')
-						} else if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
-							qb.where('sh.in_sugarcane = false')
+						if (inSugarcaneFilter.length !== hotspotType.length) {
+							if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
+								qb.where('sh.in_sugarcane = true')
+							} else if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
+								qb.where('sh.in_sugarcane = false')
+							}
 						}
 					}),
 				)
@@ -123,7 +120,7 @@ export class BurntAreaController {
 	}
 
 	@Get('burnt')
-	@UseGuards(AuthGuard)
+	// @UseGuards(AuthGuard)
 	async getBurnt(
 		@Query() payload: GetBurntBurntAreaDtoIn,
 		@Res() res,
