@@ -40,7 +40,7 @@ export class BurntAreaController {
 	) {}
 
 	@Get('hotspot')
-	// @UseGuards(AuthGuard)
+	@UseGuards(AuthGuard)
 	async getHotspot(
 		@Query() payload: GetHotspotBurntAreaDtoIn,
 		@Res() res,
