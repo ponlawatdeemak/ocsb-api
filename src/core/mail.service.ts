@@ -24,6 +24,7 @@ export class MailService {
 			to: userEmail,
 			subject: 'เข้าสู่ระบบครั้งแรก',
 			html,
+			from: this.configService.get<string>('MAIL_FROM'),
 		})
 	}
 
@@ -39,6 +40,7 @@ export class MailService {
 			to: userEmail,
 			subject: 'ลืมรหัสผ่าน',
 			html,
+			from: this.configService.get<string>('MAIL_FROM'),
 		})
 	}
 }
