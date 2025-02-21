@@ -1,4 +1,4 @@
-import { hotspotTypeCode } from '@interface/config/app.config'
+import { hotspotType, hotspotTypeCode } from '@interface/config/app.config'
 import { GetDashBoardBurntAreaDtoIn } from '@interface/dto/brunt-area/brunt-area.dto-in'
 import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
 import { Injectable } from '@nestjs/common'
@@ -46,15 +46,12 @@ export class BurntAreaService {
 				.where('sh.region_id IS NOT NULL')
 				.andWhere(
 					new Brackets((qb) => {
-						if (
-							inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan) &&
-							inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)
-						) {
-							qb.where('1 = 1')
-						} else if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
-							qb.where('sh.in_sugarcane = true')
-						} else if (inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)) {
-							qb.where('sh.in_sugarcane = false')
+						if (inSugarcaneFilter.length !== hotspotType.length) {
+							if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
+								qb.where('sh.in_sugarcane = true')
+							} else if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
+								qb.where('sh.in_sugarcane = false')
+							}
 						}
 					}),
 				)
