@@ -17,7 +17,7 @@ import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspot
 import { Controller, Get, Query, UseGuards, Res } from '@nestjs/common'
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm'
 import { AuthGuard } from 'src/core/auth.guard'
-import { validatePayload } from 'src/core/utils'
+import { convertPolygonToWKT, validatePayload } from 'src/core/utils'
 import { Repository, DataSource, Brackets } from 'typeorm'
 import { BurntAreaService } from './burnt-area.service'
 
@@ -96,6 +96,12 @@ export class BurntAreaController {
 					endDate: payload.endDate,
 				})
 			}
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderHotspot.andWhere('ST_Within(sh.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
+				})
+			}
 			hotspots = await queryBuilderHotspot.getRawMany().then((data) => {
 				return data.map((item) => item.geojson)
 			})
@@ -150,6 +156,13 @@ export class BurntAreaController {
 			queryBuilderBurnArea.andWhere('DATE(sdba.detected_d) BETWEEN :startDate AND :endDate', {
 				startDate: payload.startDate,
 				endDate: payload.endDate,
+			})
+		}
+
+		if (payload.polygon) {
+			const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+			queryBuilderBurnArea.andWhere('ST_Within(sdba.geometry, ST_GeomFromText(:polygon, 4326))', {
+				polygon: formatePolygon,
 			})
 		}
 
@@ -209,9 +222,18 @@ export class BurntAreaController {
 				endDate: payload.endDate,
 			})
 		}
+
+		if (payload.polygon) {
+			const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+			queryBuilderYieldPred.andWhere('ST_Within(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
+				polygon: formatePolygon,
+			})
+		}
+
 		const yieldPred: GetPlantBurntAreaDtoOut[] = await queryBuilderYieldPred.getRawMany().then((data) => {
 			return data.map((item) => item.geojson)
 		})
+
 		res.setHeader('Cache-Control', 'public, max-age=3600')
 		return res.json({
 			data: yieldPred,

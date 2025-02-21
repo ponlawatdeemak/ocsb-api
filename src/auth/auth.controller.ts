@@ -15,7 +15,7 @@ import {
 	ResetPasswordAuthDtoOut,
 	VerifyTokenAuthDtoOut,
 } from '@interface/dto/auth/auth.dto-out'
-import { UsersEntity } from '@interface/entities'
+import { BoundaryRegionEntity, UsersEntity } from '@interface/entities'
 import { Body, Controller, Post, UnauthorizedException, BadRequestException, Put } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
@@ -38,6 +38,9 @@ export class AuthController {
 
 		@InjectRepository(UsersEntity)
 		private readonly userEntity: Repository<UsersEntity>,
+
+		@InjectRepository(BoundaryRegionEntity)
+		private readonly boundaryRegionEntity: Repository<BoundaryRegionEntity>,
 	) {}
 
 	@Post('/hash-password')
@@ -64,12 +67,26 @@ export class AuthController {
 			.leftJoinAndSelect('users.role', 'role')
 			.leftJoinAndSelect('users.position', 'position')
 			.leftJoinAndSelect('users.region', 'region')
+			.leftJoinAndSelect('users.regions', 'regions')
 			.where({ email: email, isDeleted: false, isActive: true })
 			.getOne()
-
 		if (!user) {
 			throw new UnauthorizedException(errorResponse.INCORRECT_CREDENTIALS)
 		}
+		const getPosition = await this.boundaryRegionEntity
+			.createQueryBuilder('br')
+			.select(
+				`
+					ST_Y(ST_Centroid(br.geometry)) AS latitude,  
+					ST_X(ST_Centroid(br.geometry)) AS longitude
+				`,
+			)
+			.where('br.region_id = :id', {
+				id: user.regions[0].regionId,
+			})
+			.getRawOne()
+		console.log('getPosition', getPosition)
+
 		const isPasswordValid = await bcrypt.compare(password, user.password)
 		if (!isPasswordValid) {
 			throw new UnauthorizedException(errorResponse.INCORRECT_CREDENTIALS)
@@ -89,6 +106,7 @@ export class AuthController {
 			...user,
 			password: undefined,
 			userId: undefined,
+			geometry: [getPosition.longitude, getPosition.latitude],
 		}
 		const data: LoginAuthDtoOut = { id: user.userId, accessToken, refreshToken, ...userOut, hasImage }
 		return new ResponseDto({ data })
