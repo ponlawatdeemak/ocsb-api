@@ -45,7 +45,8 @@ export class BurntAreaController {
 		@Query() payload: GetHotspotBurntAreaDtoIn,
 		@Res() res,
 	): Promise<ResponseDto<GetHotspotBurntAreaDtoOut[]>> {
-		const inSugarcaneFilter = payload?.inSugarcan ? validatePayload(payload?.inSugarcan) : []
+		const inSugarcaneFilter = payload?.inSugarcan ? validatePayload(JSON.parse(payload?.inSugarcan as any)) : []
+
 		let hotspots: GetHotspotBurntAreaDtoOut[] = []
 		if (validateDate(payload.startDate, payload.endDate)) throw new BadRequestException(errorResponse.INVALID_DATE)
 
@@ -78,17 +79,11 @@ export class BurntAreaController {
                 `,
 				)
 				.where('sh.region_id IS NOT NULL')
-				.andWhere(
-					new Brackets((qb) => {
-						if (inSugarcaneFilter.length !== hotspotType.length) {
-							if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
-								qb.where('sh.in_sugarcane = true')
-							} else if (inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)) {
-								qb.where('sh.in_sugarcane = false')
-							}
-						}
-					}),
-				)
+
+			if (inSugarcaneFilter.length === 1) {
+				queryBuilderHotspot.andWhere({ inSugarcane: inSugarcaneFilter[0] === hotspotTypeCode.inSugarcan })
+			}
+
 			if (payload.startDate && payload.endDate) {
 				queryBuilderHotspot.andWhere('DATE(sh.acq_date) BETWEEN :startDate AND :endDate', {
 					startDate: payload.startDate,
