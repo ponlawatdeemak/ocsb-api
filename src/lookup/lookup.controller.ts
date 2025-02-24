@@ -17,12 +17,14 @@ export class LookupController {
 		const tableName = `${snakeCase(payload.name)}`
 		const repository = this.dataSource.getRepository(tableName)
 
-		const result = await repository
+		const builder = repository
 			.createQueryBuilder()
 			.where(payload.where || {})
 			.select('*')
-			.orderBy(payload.sort, payload.order)
-			.execute()
+		if (payload.sort && payload.order) {
+			builder.orderBy(payload.sort, payload.order)
+		}
+		const result = await builder.execute()
 
 		return new ResponseDto({ data: result })
 	}
