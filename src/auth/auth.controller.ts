@@ -73,20 +73,19 @@ export class AuthController {
 		if (!user) {
 			throw new UnauthorizedException(errorResponse.INCORRECT_CREDENTIALS)
 		}
-		const getPosition = await this.boundaryRegionEntity
-			.createQueryBuilder('br')
-			.select(
-				`
-					ST_Y(ST_Centroid(br.geometry)) AS latitude,  
-					ST_X(ST_Centroid(br.geometry)) AS longitude
-				`,
-			)
-			.where('br.region_id = :id', {
-				id: user.regions[0].regionId,
-			})
-			.getRawOne()
-		console.log('getPosition', getPosition)
 
+		const regionIds = user.regions.map((region) => region.regionId) // ดึง regionId ทั้งหมด
+
+		const getPosition = await this.boundaryRegionEntity
+			.createQueryBuilder()
+			.select('ST_Extent(merged.geometry)', 'extend')
+			.from((subQuery) => {
+				return subQuery
+					.select('ST_Union(br.geometry)', 'geometry')
+					.from('boundary_region', 'br')
+					.where('br.region_id IN (:...ids)', { ids: regionIds })
+			}, 'merged')
+			.getRawOne()
 		const isPasswordValid = await bcrypt.compare(password, user.password)
 		if (!isPasswordValid) {
 			throw new UnauthorizedException(errorResponse.INCORRECT_CREDENTIALS)
@@ -100,13 +99,18 @@ export class AuthController {
 		const refreshToken = jwt.sign(paylod, process.env.JWT_SECRET_REFRESH, {
 			expiresIn: this.refreshTokenExpried,
 		})
+		const bboxArray = getPosition.extend
+			.replace('BOX(', '')
+			.replace(')', '')
+			.split(',')
+			.map((coord) => coord.trim().split(' ').map(parseFloat))
 		const hasImage = !!user.img
 		delete user.img
 		const userOut = {
 			...user,
 			password: undefined,
 			userId: undefined,
-			geometry: [getPosition.longitude, getPosition.latitude],
+			geometry: bboxArray,
 		}
 		const data: LoginAuthDtoOut = { id: user.userId, accessToken, refreshToken, ...userOut, hasImage }
 		return new ResponseDto({ data })

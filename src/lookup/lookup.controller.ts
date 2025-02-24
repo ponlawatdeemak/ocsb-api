@@ -17,12 +17,14 @@ export class LookupController {
 		const tableName = `${snakeCase(payload.name)}`
 		const repository = this.dataSource.getRepository(tableName)
 
-		const result = await repository
+		const builder = repository
 			.createQueryBuilder()
 			.where(payload.where || {})
 			.select('*')
-			.orderBy(payload.sort, payload.order)
-			.execute()
+		if (payload.sort && payload.order) {
+			builder.orderBy(payload.sort, payload.order)
+		}
+		const result = await builder.execute()
 
 		return new ResponseDto({ data: result })
 	}
@@ -45,13 +47,14 @@ export class LookupController {
 						NULL::bigint AS o_adm3c,
 						NULL::text AS o_adm3t,
 						1 AS level,
-						ST_Y(ST_Centroid(ba.geometry)) AS latitude,   -- คำนวณค่ากลาง latitude
-						ST_X(ST_Centroid(ba.geometry)) AS longitude   -- คำนวณค่ากลาง longitude
+						ST_Extent(ba.geometry) AS extend
 					FROM 
 						sugarcane.sugarcane.boundary_adm1 ba
 					WHERE 
 						ba.o_adm1t ILIKE '%' || $1 || '%' 
 						OR ba.o_adm1e ILIKE '%' || $1 || '%'
+					GROUP BY
+						ba.o_adm1c, ba.o_adm1t, ba.o_adm1e
 					LIMIT 10
 				),
 				district_matches AS (
@@ -65,8 +68,7 @@ export class LookupController {
 						NULL::bigint AS o_adm3c,
 						NULL::text AS o_adm3t,
 						2 AS level,
-						ST_Y(ST_Centroid(ba2.geometry)) AS latitude,   -- คำนวณ latitude จาก geometry ของเขตอำเภอ
-						ST_X(ST_Centroid(ba2.geometry)) AS longitude   -- คำนวณ longitude จาก geometry ของเขตอำเภอ
+						ST_Extent(ba2.geometry) AS extend
 					FROM 
 						sugarcane.sugarcane.boundary_adm2 ba2
 					JOIN 
@@ -77,6 +79,8 @@ export class LookupController {
 						OR ba.o_adm1e ILIKE '%' || $1 || '%' 
 						OR ba2.o_adm2t ILIKE '%' || $1 || '%' 
 						OR ba2.o_adm2e ILIKE '%' || $1 || '%'
+					GROUP BY
+						ba2.o_adm1c, ba.o_adm1t, ba.o_adm1e, ba2.o_adm2c, ba2.o_adm2t, ba2.o_adm2e
 					LIMIT 10
 				),
 				subdistrict_matches AS (
@@ -90,8 +94,7 @@ export class LookupController {
 						ba3.o_adm3c,
 						ba3.o_adm3t,
 						3 AS level,
-						ST_Y(ST_Centroid(ba3.geometry)) AS latitude,   -- คำนวณ latitude จาก geometry ของเขตตำบล
-						ST_X(ST_Centroid(ba3.geometry)) AS longitude   -- คำนวณ longitude จาก geometry ของเขตตำบล
+						ST_Extent(ba3.geometry) AS extend
 					FROM 
 						sugarcane.sugarcane.boundary_adm3 ba3
 					JOIN 
@@ -106,6 +109,8 @@ export class LookupController {
 						OR ba2.o_adm2t ILIKE '%' || $1 || '%' 
 						OR ba2.o_adm2e ILIKE '%' || $1 || '%'
 						OR ba3.o_adm3t ILIKE '%' || $1 || '%'
+					GROUP BY
+						ba3.o_adm1c, ba.o_adm1t, ba.o_adm1e, ba2.o_adm2c, ba2.o_adm2t, ba2.o_adm2e, ba3.o_adm3c, ba3.o_adm3t
 					LIMIT 10
 				)
 				SELECT * 
@@ -127,13 +132,18 @@ export class LookupController {
 			)
 			.then((data) => {
 				return data.map((item) => {
+					const bboxArray = item.extend
+						.replace('BOX(', '')
+						.replace(')', '')
+						.split(',')
+						.map((coord) => coord.trim().split(' ').map(parseFloat))
 					return {
 						id: item.o_adm3c ? item.o_adm3c : item.o_adm2c ? item.o_adm2c : item.o_adm1c,
 						name: {
 							en: `${item.o_adm1e} ${item.o_adm2e ? item.o_adm2e : ''} ${item.o_adm3e ? item.o_adm3e : ''}`.trim(),
 							th: `${item.o_adm1t} ${item.o_adm2t ? item.o_adm2t : ''} ${item.o_adm3t ? item.o_adm3t : ''}`.trim(),
 						},
-						geometry: [item.longitude, item.latitude],
+						geometry: bboxArray,
 					}
 				})
 			})

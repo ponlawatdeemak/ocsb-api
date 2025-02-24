@@ -143,22 +143,22 @@ export class OverviewController {
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 		const queryResult = await this.dataSource.query(
 			`SELECT 
-					r.region_id,-- Dto Out : regionId
+					r.region_id,
 					r.region_name,
 					r.region_name_en,
 					ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces,
 					ARRAY_AGG(DISTINCT p.province_name_en ORDER BY p.province_name_en) AS provinces_en,
-					COUNT(*) AS region_count, -- Dto Out : regionCount
-					COUNT(CASE WHEN sh.in_sugarcane = true THEN 1 END) AS in_sugarcane, -- Dto Out : inSugarcan
-					COUNT(CASE WHEN sh.in_sugarcane = false THEN 1 END) AS not_in_sugarcane -- Dto Out : notInSugarcan
+					COUNT(*) AS region_count, 
+					COUNT(CASE WHEN sh.in_sugarcane = true THEN 1 END) AS in_sugarcane, 
+					COUNT(CASE WHEN sh.in_sugarcane = false THEN 1 END) AS not_in_sugarcane 
 				from sugarcane.sugarcane.regions r
 				left join sugarcane.sugarcane.provinces p on r.region_id = p.region_id 
 				left join sugarcane.sugarcane.sugarcane_hotspot sh on r.region_id = sh.region_id		
-				where sh.acq_date -- Where ด้วย Date ที่เป็น Lookup จาก Table year_production
+				where sh.acq_date 
 					BETWEEN $1 and $2  and 
 					r.region_id < 5
-				GROUP BY r.region_id,r.region_name,r.region_name_en -- GROUP ด้วยภูมิภาค
-				ORDER BY r.region_id; -- ORDER ด้วยภูมิภาค 
+				GROUP BY r.region_id,r.region_name,r.region_name_en 
+				ORDER BY r.region_id;
 			`,
 			[yearLookupCondition.hotspotStart, yearLookupCondition.hotspotEnd],
 		)
@@ -183,15 +183,13 @@ export class OverviewController {
 	async getBurnt(@Query() payload: GetBurntOverviewDtoIn): Promise<ResponseDto<GetBurntOverviewDtoOut[]>> {
 		const queryResult = await this.dataSource.query(
 			`WITH month_series AS (
-				-- สร้างช่วงเดือนทั้งหมดในช่วง burn_area_start - burn_area_end
 				SELECT generate_series(
-					(SELECT DATE_TRUNC('month', yp.burn_area_start) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), -- id จาก query param
-					(SELECT DATE_TRUNC('month', yp.burn_area_end) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), -- id จาก query param
+					(SELECT DATE_TRUNC('month', yp.burn_area_start) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), 
+					(SELECT DATE_TRUNC('month', yp.burn_area_end) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), 
 					'1 month'
 				)::date AS month
 			),
 			region_series AS (
-				-- ดึง region_id ทั้งหมดจาก Table lookup
 				SELECT r.region_id,
 					r.region_name, 
 					r.region_name_en,
@@ -203,7 +201,6 @@ export class OverviewController {
 				GROUP BY r.region_id
 			),
 			aggregated_data AS (
-				-- คำนวณค่าผลรวมของแต่ละเดือนและ region
 				SELECT 
 					ms.month,
 					rs.region_id,
@@ -262,49 +259,49 @@ export class OverviewController {
 	async getPlant(@Query() payload: GetPlantOverviewDtoIn): Promise<ResponseDto<GetPlantOverviewDtoOut>> {
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 		const queryResult = await this.dataSource.query(
-			`WITH total_area AS ( -- Table Temp ไว้หาค่าพื้นที่ทั้งหมดของแต่ละหน่วย
+			`WITH total_area AS ( 
 					SELECT 
-						SUM(sdyp2.area_m2) AS m2, -- พื้นที่ทั้งหมดหน่วยตารางเมตร
-						SUM(sdyp2.area_rai) AS rai, -- พื้นที่ทั้งหมดหน่วยไร่
-						SUM(sdyp2.area_km2) AS km2, -- พื้นที่ทั้งหมดหน่วยตารางกิโลเมตร
-						SUM(sdyp2.area_hexa) AS hexa  -- พื้นที่ทั้งหมดหน่วย Hexa
-					FROM sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp2 -- Table sugarcane_ds_yield_pred
-					JOIN sugarcane.sugarcane.year_production yp -- Join กับ Table lookup เพื่อเอา Data ปีและรอบ
-						ON yp.id = $2 -- id จาก query param
-					WHERE sdyp2.cls_round = yp.sugarcane_round -- Where ด้วยรอบและปีตาม Lookup
+						SUM(sdyp2.area_m2) AS m2, 
+						SUM(sdyp2.area_rai) AS rai, 
+						SUM(sdyp2.area_km2) AS km2, 
+						SUM(sdyp2.area_hexa) AS hexa  
+					FROM sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp2 
+					JOIN sugarcane.sugarcane.year_production yp 
+						ON yp.id = $2 
+					WHERE sdyp2.cls_round = yp.sugarcane_round 
 					AND sdyp2.cls_edate BETWEEN DATE(yp.sugarcane_year || '-01-01')
 					AND DATE(yp.sugarcane_year || '-12-31')
 				)
 				SELECT 
-					r.region_id, -- Dto Out : regionId
+					r.region_id, 
 					r.region_name,
 					r.region_name_en,
-					ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, -- Dto Out : provinces
+					ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, 
 					ARRAY_AGG(DISTINCT p.province_name_en ORDER BY p.province_name_en) AS provinces_en,
-					COALESCE(SUM(sdyp.area_m2), 0) AS m2, -- Dto Out : m2
-					COALESCE(SUM(sdyp.area_rai), 0) AS rai, -- Dto Out : rai
-					COALESCE(SUM(sdyp.area_km2), 0) AS km2, -- Dto Out : km2
-					COALESCE(SUM(sdyp.area_hexa), 0) AS hexa, -- Dto Out : hexa
-					ROUND(COALESCE(SUM(sdyp.area_m2), 0)::numeric / (ta.m2::numeric) * 100, 2) AS m2_percent, -- Dto Out : m2Percent
-					ROUND(COALESCE(SUM(sdyp.area_rai), 0)::numeric / (ta.rai::numeric) * 100, 2) AS rai_percent, -- Dto Out : raiPercent
-					ROUND(COALESCE(SUM(sdyp.area_km2), 0)::numeric / (ta.km2::numeric) * 100, 2) AS km2_percent, -- Dto Out : km2Percent
-					ROUND(COALESCE(SUM(sdyp.area_hexa), 0)::numeric / (ta.hexa::numeric) * 100, 2) AS hexa_percent -- Dto Out : hexaPercent
-				FROM sugarcane.sugarcane.regions r -- เริ่มจาก Regions เพื่อนำไปหา พื้นที่ของแต่ละภูมิภาคที่มี
-				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp -- ไป join กับ Table ที่มีข้อมูลพื้นที่ด้วย region_id
+					COALESCE(SUM(sdyp.area_m2), 0) AS m2, 
+					COALESCE(SUM(sdyp.area_rai), 0) AS rai, 
+					COALESCE(SUM(sdyp.area_km2), 0) AS km2, 
+					COALESCE(SUM(sdyp.area_hexa), 0) AS hexa, 
+					ROUND(COALESCE(SUM(sdyp.area_m2), 0)::numeric / (ta.m2::numeric) * 100, 2) AS m2_percent, 
+					ROUND(COALESCE(SUM(sdyp.area_rai), 0)::numeric / (ta.rai::numeric) * 100, 2) AS rai_percent, 
+					ROUND(COALESCE(SUM(sdyp.area_km2), 0)::numeric / (ta.km2::numeric) * 100, 2) AS km2_percent, 
+					ROUND(COALESCE(SUM(sdyp.area_hexa), 0)::numeric / (ta.hexa::numeric) * 100, 2) AS hexa_percent 
+				FROM sugarcane.sugarcane.regions r 
+				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
 					ON sdyp.region_id = r.region_id
 					AND sdyp.cls_round = $1
 					AND DATE(sdyp.cls_edate) BETWEEN (
 						SELECT DATE(yp.sugarcane_year || '-01-01') 
 						FROM sugarcane.sugarcane.year_production yp 
-						WHERE yp.id = $2 -- id จาก query param
+						WHERE yp.id = $2 
 					) AND (
 						SELECT DATE(yp.sugarcane_year || '-12-31') 
 						FROM sugarcane.sugarcane.year_production yp 
-						WHERE yp.id = $2 -- id จาก query param
+						WHERE yp.id = $2 
 					)
-				LEFT JOIN sugarcane.sugarcane.provinces p -- join กับ Table ที่มีข้อมูลของจังหวัดแต่ละภาค
+				LEFT JOIN sugarcane.sugarcane.provinces p 
 					ON p.region_id = r.region_id
-				LEFT JOIN total_area ta ON true  -- join กับ total_area เพื่อนำคำนวณพื้นที่ทั้งหมดด้านบนมาใช้
+				LEFT JOIN total_area ta ON true  
 				where r.region_id < 5
 				GROUP BY r.region_id, ta.rai, ta.m2, ta.km2, ta.hexa
 				ORDER BY r.region_id;
@@ -354,35 +351,34 @@ export class OverviewController {
 				r.region_id,
 				r.region_name, 
 				r.region_name_en, 
-				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, -- Dto Out : provinces
+				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, 
 				ARRAY_AGG(DISTINCT p.province_name_en ORDER BY p.province_name_en) AS provinces_en, 
-				-- ตั้งชื่อ Dto Out ประมาณนี้เพื่อให้ FE เอา Config ต่อกันเป็น string ได้
-				SUM(sdyp.yield_mean_kg_m2) as yield_mean_kg_m2, -- Dto Out : kg_m2
-				SUM(sdyp.yield_mean_kg_km2) as yield_mean_kg_km2, -- Dto Out : kg_km2
-				SUM(sdyp.yield_mean_kg_rai) as yield_mean_kg_rai, -- Dto Out : kg_rai
-				SUM(sdyp.yield_mean_kg_hexa) as yield_mean_kg_hexa, -- Dto Out : kg_hexa
-				SUM(sdyp.yield_mean_ton_m2) as yield_mean_ton_m2, -- Dto Out : ton_m2
-				SUM(sdyp.yield_mean_ton_km2) as yield_mean_ton_km2, -- Dto Out : ton_km2
-				SUM(sdyp.yield_mean_ton_rai) as yield_mean_ton_rai, -- Dto Out : ton_rai
-				SUM(sdyp.yield_mean_ton_hexa) as yield_mean_ton_hexa -- Dto Out : ton_hexa
-				FROM sugarcane.sugarcane.regions r -- เริ่มจาก Table region เพื่อให้ตั้งต้นตามภูมิภาค
-				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp -- join กับ Table ที่มีข้อมูลพื้นที่ด้วย region_id
+				SUM(sdyp.yield_mean_kg_m2) as yield_mean_kg_m2, 
+				SUM(sdyp.yield_mean_kg_km2) as yield_mean_kg_km2, 
+				SUM(sdyp.yield_mean_kg_rai) as yield_mean_kg_rai, 
+				SUM(sdyp.yield_mean_kg_hexa) as yield_mean_kg_hexa, 
+				SUM(sdyp.yield_mean_ton_m2) as yield_mean_ton_m2, 
+				SUM(sdyp.yield_mean_ton_km2) as yield_mean_ton_km2, 
+				SUM(sdyp.yield_mean_ton_rai) as yield_mean_ton_rai, 
+				SUM(sdyp.yield_mean_ton_hexa) as yield_mean_ton_hexa 
+				FROM sugarcane.sugarcane.regions r 
+				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
 					ON sdyp.region_id = r.region_id
-					AND sdyp.cls_round = ( -- เพิ่มเงื่อนไขเอาเฉพาะ Data ที่อยู่ใน Period โดยอ้างอิงจาก Lookup Table 
+					AND sdyp.cls_round = ( 
 						SELECT yp.sugarcane_round 
 						FROM sugarcane.sugarcane.year_production yp 
-						WHERE yp.id = $1 -- id จาก query param
+						WHERE yp.id = $1 
 					)
 					AND DATE(sdyp.cls_edate) BETWEEN (
 						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
 						FROM sugarcane.sugarcane.year_production yp 
-						WHERE yp.id = $1 -- id จาก query param
+						WHERE yp.id = $1 
 					) AND (
 						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD') 
 						FROM sugarcane.sugarcane.year_production yp 
-						WHERE yp.id = $1 -- id จาก query param
+						WHERE yp.id = $1 
 					)
-				LEFT JOIN sugarcane.sugarcane.provinces p -- join กับ Table ที่มีข้อมูลของจังหวัดแต่ละภาค
+				LEFT JOIN sugarcane.sugarcane.provinces p 
 					ON p.region_id = r.region_id
 				where r.region_id < 5 
 				group by r.region_id 
@@ -421,29 +417,29 @@ export class OverviewController {
 		@Query() payload: GetProductPredictOverviewDtoIn,
 	): Promise<ResponseDto<GetProductPredictOverviewDtoOut[]>> {
 		const queryResult = await this.dataSource.query(
-			`WITH last_4_years AS ( -- สร้าง Table Temp สำหรับ Get ปีย้อนหลัง 4 ปี
+			`WITH last_4_years AS ( 
 				SELECT * 
 				FROM sugarcane.sugarcane.year_production
-				WHERE id <= $1 -- id จาก query param
+				WHERE id <= $1 
 				ORDER BY id DESC
-				LIMIT 4 -- ย้อนหลัง 4 
+				LIMIT 4 
 			)
 			SELECT 
-				yp.id as year_id, -- id ของ ปี
-				yp.name as year_name, -- ชื่อของปีภาษาไทย
-				yp.name_en as year_name_en, -- ชื่อของปีภาษาอังกฤษ
-				r.region_id, -- id ภูมิภาค
-				r.region_name, -- ชื่อของภูมิภาษาไทย
-				r.region_name_en, -- ชื่อของภูมิภาษาอังกฤษ
-				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, -- Dto Out : provinces
+				yp.id as year_id, 
+				yp.name as year_name, 
+				yp.name_en as year_name_en, 
+				r.region_id, 
+				r.region_name, 
+				r.region_name_en, 
+				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, 
 				ARRAY_AGG(DISTINCT p.province_name_en ORDER BY p.province_name_en) AS provinces_en, 
-				COALESCE(SUM(sdyp.production_kg), 0) as production_kg, -- ผลรวมของอ้อยหน่วยเป็นกิโลกรัม รวมกันตาม ปีและภายในภูมิภาคนั้นๆ 
-				COALESCE(SUM(sdyp.production_ton), 0) as production_ton -- ผลรวมของอ้อยหน่วยเป็นตัน รวมกันตาม ปีและภายในภูมิภาคนั้นๆ 
-			FROM last_4_years yp -- Table temp 
-			CROSS JOIN sugarcane.sugarcane.regions r -- join กับ ภูมิภาคเพื่อเอาภาคทั้งหมด
+				COALESCE(SUM(sdyp.production_kg), 0) as production_kg, 
+				COALESCE(SUM(sdyp.production_ton), 0) as production_ton 
+			FROM last_4_years yp 
+			CROSS JOIN sugarcane.sugarcane.regions r 
 			left join sugarcane.sugarcane.provinces p on p.region_id = r.region_id
-			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp -- ่join กับ table ที่มี data ของอ้อย
-				ON sdyp.region_id = r.region_id -- เงื่อนไขคือ ภูมิภาคเดียวกัน รอบเดียวกัน ช่วงปีเท่ากัน
+			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
+				ON sdyp.region_id = r.region_id 
 				AND sdyp.cls_round = yp.sugarcane_round 
 				AND DATE(sdyp.cls_edate) 
 					BETWEEN TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
@@ -455,7 +451,7 @@ export class OverviewController {
 			[payload.id],
 		)
 
-		let groupedData = queryResult.reduce((acc, item) => {
+		const groupedData = queryResult.reduce((acc, item) => {
 			if (!acc[item.region_id]) {
 				acc[item.region_id] = {
 					regionId: item.region_id,
@@ -482,7 +478,7 @@ export class OverviewController {
 			return acc
 		}, {})
 
-		let data: GetProductPredictOverviewDtoOut[] = Object.values(groupedData)
+		const data: GetProductPredictOverviewDtoOut[] = Object.values(groupedData)
 		return new ResponseDto<GetProductPredictOverviewDtoOut[]>({ data })
 	}
 
@@ -491,14 +487,14 @@ export class OverviewController {
 		@Query() payload: GetProductPredictOverviewDtoIn,
 	): Promise<ResponseDto<GetReplantOverviewDtoOut[]>> {
 		const queryResult = await this.dataSource.query(
-			`WITH last_3_years AS ( -- สร้าง Table Temp สำหรับ Get ปีย้อนหลัง 3 ปี
+			`WITH last_3_years AS ( 
 				SELECT * 
 				FROM sugarcane.sugarcane.year_production
-				WHERE id <= $1 -- id จาก query param
+				WHERE id <= $1 
 				ORDER BY id DESC
-				LIMIT 3 -- ย้อนหลัง 3 
+				LIMIT 3 
 			), 
-			repeat_area AS ( -- สร้าง Table Temp สำหรับ Get ข้อมูลการปลูกอ้อยซ้ำของแต่ละภูมิภาค
+			repeat_area AS ( 
 				SELECT 
 					region_id,
 					cls_round,
@@ -508,33 +504,33 @@ export class OverviewController {
 					SUM(area_rai) as area_rai,
 					SUM(area_hexa) as area_hexa
 				FROM sugarcane.sugarcane.sugarcane_ds_repeat_area 
-				WHERE repeat = 3 -- การปลูกซ้ำ = 3
+				WHERE repeat = 3 
 				GROUP BY region_id, cls_round, cls_edate
 			)
 			SELECT 
-				yp.id AS year_id, -- id ของปี
-				yp.name AS year_name, -- ชื่อของปีภาษาไทย
-				yp.name_en AS year_name_en, -- ชื่อของปีภาษาอังกฤษ
-				r.region_id, -- id ของภูมิภาค
-				r.region_name, -- ชื่อของภูมิภาคภาษาไทย
-				r.region_name_en, -- ชื่อของภูมิภาคภาษาอังกฤษ
-				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, -- Dto Out : provinces
+				yp.id AS year_id, 
+				yp.name AS year_name, 
+				yp.name_en AS year_name_en, 
+				r.region_id, 
+				r.region_name, 
+				r.region_name_en, 
+				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, 
 				ARRAY_AGG(DISTINCT p.province_name_en ORDER BY p.province_name_en) AS provinces_en, 
-				COALESCE(100 * ra.area_m2 / NULLIF(SUM(sdra.area_m2), 0), 0) AS m2, -- คำนวนเปอเซ็นของตารางเมตร
-				COALESCE(100 * ra.area_km2 / NULLIF(SUM(sdra.area_km2), 0), 0) AS km2, -- คำนวนเปอเซ็นของตารางกิโลเมตร
-				COALESCE(100 * ra.area_rai / NULLIF(SUM(sdra.area_rai), 0), 0) AS rai, -- คำนวนเปอเซ็นของไร่
-				COALESCE(100 * ra.area_hexa / NULLIF(SUM(sdra.area_hexa), 0), 0) AS hexa -- คำนวนเปอเซ็นของ Hexa
-			FROM last_3_years yp -- Table temp
-			CROSS JOIN sugarcane.sugarcane.regions r  -- join กับ ภูมิภาคเพื่อเอาภาคทั้งหมด
+				COALESCE(100 * ra.area_m2 / NULLIF(SUM(sdra.area_m2), 0), 0) AS m2, 
+				COALESCE(100 * ra.area_km2 / NULLIF(SUM(sdra.area_km2), 0), 0) AS km2, 
+				COALESCE(100 * ra.area_rai / NULLIF(SUM(sdra.area_rai), 0), 0) AS rai, 
+				COALESCE(100 * ra.area_hexa / NULLIF(SUM(sdra.area_hexa), 0), 0) AS hexa 
+			FROM last_3_years yp 
+			CROSS JOIN sugarcane.sugarcane.regions r 
 			left join sugarcane.sugarcane.provinces p on p.region_id = r.region_id
-			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_repeat_area sdra -- ่join กับ table ที่มี data ของพื้นที่
-				ON sdra.region_id = r.region_id  -- เงื่อนไขคือ ภูมิภาคเดียวกัน รอบเดียวกัน ช่วงปีเท่ากัน
+			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_repeat_area sdra 
+				ON sdra.region_id = r.region_id  
 				AND sdra.cls_round = yp.sugarcane_round 
 				AND sdra.cls_edate BETWEEN 
 					TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
 					AND TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD')
-			LEFT JOIN repeat_area ra  -- ่join กับ table temp ที่มี data ของพื้นที่การปลูกซ้ำ
-				ON ra.region_id = r.region_id -- เงื่อนไขคือ ภูมิภาคเดียวกัน รอบเดียวกัน ช่วงปีเท่ากัน
+			LEFT JOIN repeat_area ra  
+				ON ra.region_id = r.region_id 
 				AND ra.cls_round = yp.sugarcane_round 
 				AND ra.cls_edate BETWEEN 
 					TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
@@ -546,7 +542,7 @@ export class OverviewController {
 			[payload.id],
 		)
 
-		let data = []
+		const data = []
 		for (const item of queryResult) {
 			let g = data.find((e) => e.regionId === item.region_id)
 			if (!g) {

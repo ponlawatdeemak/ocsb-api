@@ -1,10 +1,10 @@
-import { hotspotTypeCode } from '@interface/config/app.config'
+import { hotspotType, hotspotTypeCode } from '@interface/config/app.config'
 import { GetDashBoardBurntAreaDtoIn } from '@interface/dto/brunt-area/brunt-area.dto-in'
 import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { generateMonthsFromRange, getStartAndEndOfMonth, sumby, validatePayload } from 'src/core/utils'
-import { Repository, Raw, Between, Brackets } from 'typeorm'
+import { Repository, Brackets } from 'typeorm'
 
 @Injectable()
 export class BurntAreaService {
@@ -23,16 +23,28 @@ export class BurntAreaService {
 		let hotspot = []
 		const inSugarcaneFilter = payload?.inSugarcan ? validatePayload(payload?.inSugarcan) : []
 		if (inSugarcaneFilter.length !== 0) {
-			const whereCondition: any = {
-				regionId: Raw((alias) => `${alias} IS NOT NULL`),
-			}
+			let countHotspot = []
+			const queryBuilderHotspotCount = this.sugarcaneHotspotEntity
+				.createQueryBuilder('sh')
+				.where('sh.region_id IS NOT NULL')
 
 			if (payload.startDate && payload.endDate) {
-				whereCondition.acqDate = Between(new Date(payload.startDate), new Date(payload.endDate))
+				queryBuilderHotspotCount.andWhere('DATE(sh.acq_date) BETWEEN :startDate AND :endDate', {
+					startDate: payload.startDate,
+					endDate: payload.endDate,
+				})
 			}
-			const countHotspot = await this.sugarcaneHotspotEntity.count({
-				where: whereCondition,
-			})
+
+			queryBuilderHotspotCount.andWhere(
+				new Brackets((qb) => {
+					if (payload.admC) {
+						qb.orWhere(`sh.o_adm3c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sh.o_adm2c = :admC`, { admC: payload.admC })
+						qb.orWhere(`sh.o_adm1c = :admC`, { admC: payload.admC })
+					}
+				}),
+			)
+			countHotspot = await queryBuilderHotspotCount.getRawMany()
 
 			const queryBuilderHotspot = this.sugarcaneHotspotEntity
 				.createQueryBuilder('sh')
@@ -46,15 +58,12 @@ export class BurntAreaService {
 				.where('sh.region_id IS NOT NULL')
 				.andWhere(
 					new Brackets((qb) => {
-						if (
-							inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan) &&
-							inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)
-						) {
-							qb.where('1 = 1')
-						} else if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
-							qb.where('sh.in_sugarcane = true')
-						} else if (inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)) {
-							qb.where('sh.in_sugarcane = false')
+						if (inSugarcaneFilter.length !== hotspotType.length) {
+							if (inSugarcaneFilter.includes(hotspotTypeCode.inSugarcan)) {
+								qb.where('sh.in_sugarcane = true')
+							} else if (inSugarcaneFilter.includes(hotspotTypeCode.notInSugarcane)) {
+								qb.where('sh.in_sugarcane = false')
+							}
 						}
 					}),
 				)
@@ -77,6 +86,7 @@ export class BurntAreaService {
 			)
 
 			hotspot = await queryBuilderHotspot.getRawMany()
+
 			const today = new Date().toISOString().split('T')[0]
 			const month = generateMonthsFromRange(payload.startDate || today, payload.endDate || today)
 			const calcHotSpot = month.map((item) => {
@@ -93,9 +103,9 @@ export class BurntAreaService {
 			})
 
 			return {
-				total: countHotspot,
-				inSugarcane: hotspot.filter((item) => item.in_sugarcane === true).length,
-				notInSugarcane: hotspot.filter((item) => item.in_sugarcane === false).length,
+				total: countHotspot.length,
+				inSugarcane: countHotspot.filter((item) => item.sh_in_sugarcane === true).length,
+				notInSugarcane: countHotspot.filter((item) => item.sh_in_sugarcane === false).length,
 				list: calcHotSpot,
 			}
 		}
