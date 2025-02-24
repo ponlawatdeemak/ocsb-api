@@ -150,4 +150,20 @@ export class LookupController {
 
 		return new ResponseDto({ data: queryBuilderAdm })
 	}
+
+	@Get('region')
+	@UseGuards(AuthGuard)
+	async getRegion(): Promise<ResponseDto<GetLookupDtoOut[]>> {
+		const statement = `
+		select 
+			r.*,
+			ST_AsGeoJSON(br.geometry)::jsonb geometry
+		from sugarcane.regions r
+		left join sugarcane.boundary_region br on br.region_id = r.region_id
+		`
+
+		const result = await this.dataSource.query(statement)
+
+		return new ResponseDto({ data: result })
+	}
 }
