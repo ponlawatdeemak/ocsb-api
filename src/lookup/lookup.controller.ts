@@ -1,6 +1,10 @@
 import { ResponseDto } from '@interface/config/app.config'
 import { GetLookupDtoIn, GetSearchAdmLookupDtoIn } from '@interface/dto/lookup/lookup.dto-in'
-import { GetLookupDtoOut, GetSearchAdmLookupDtoOut } from '@interface/dto/lookup/lookup.dto-out'
+import {
+	GetLookupDtoOut,
+	GetRepeatAreaLookupDtoOut,
+	GetSearchAdmLookupDtoOut,
+} from '@interface/dto/lookup/lookup.dto-out'
 import { Controller, Get, Query, UseGuards } from '@nestjs/common'
 import { snakeCase } from 'change-case'
 import { InjectDataSource } from '@nestjs/typeorm'
@@ -165,5 +169,24 @@ export class LookupController {
 		const result = await this.dataSource.query(statement)
 
 		return new ResponseDto({ data: result })
+	}
+
+	@Get('repeat-area')
+	@UseGuards(AuthGuard)
+	async getRepeatArea(): Promise<ResponseDto<GetRepeatAreaLookupDtoOut[]>> {
+		const statement = `
+		select repeat 
+		from sugarcane.sugarcane.sugarcane_ds_repeat_area sdra 
+		group by repeat 
+		`
+		const result = await this.dataSource.query(statement)
+		return new ResponseDto({
+			data: result.map((item) => {
+				return {
+					id: parseInt(item.repeat),
+					name: item.repeat,
+				}
+			}),
+		})
 	}
 }
