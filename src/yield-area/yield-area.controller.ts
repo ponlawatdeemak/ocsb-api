@@ -56,7 +56,11 @@ export class YieldAreaController {
                 		'm2', sdy.area_m2,
 	                	'km2', sdy.area_km2,
 	                	'rai', sdy.area_rai,
-	                	'hexa', sdy.area_hexa
+	                	'hexa', sdy.area_hexa,
+						'adm', jsonb_build_object( 
+							'en', sdy.o_adm3e || ' ' || sdy.o_adm2e || ' ' || sdy.o_adm1e,
+							'th', sdy.o_adm3t || ' ' || sdy.o_adm2t || ' ' || sdy.o_adm1t
+						)
                 	) 
                 )
                 ) as geojson
@@ -118,6 +122,10 @@ export class YieldAreaController {
                             'rai', sdyp.area_rai,
                             'hexa', sdyp.area_hexa 
                         ),
+						'adm', jsonb_build_object( 
+							'en', sdyp.o_adm3e || ' ' || sdyp.o_adm2e || ' ' || sdyp.o_adm1e,
+							'th', sdyp.o_adm3t || ' ' || sdyp.o_adm2t || ' ' || sdyp.o_adm1t
+						), 
                         'product',jsonb_build_object(
                             'kg', jsonb_build_object(
                                 'm2', sdyp.yield_mean_kg_m2 ,
@@ -191,11 +199,15 @@ export class YieldAreaController {
                     'properties', jsonb_build_object(
                         'date', sdra.cls_edate,
                         'repeat', sdra.repeat,
+						 'adm', jsonb_build_object( 
+							'en', sdra.o_adm3e || ' ' || sdra.o_adm2e || ' ' || sdra.o_adm1e,
+							'th', sdra.o_adm3t || ' ' || sdra.o_adm2t || ' ' || sdra.o_adm1t
+						),
                         'area',jsonb_build_object(
                             'm2', sdra.area_m2,
                             'km2', sdra.area_km2,
                             'rai', sdra.area_rai,
-                            'hexa', sdra.area_hexa 
+                            'hexa', sdra.area_hexa
                         )
                     )
                     ) as geojson

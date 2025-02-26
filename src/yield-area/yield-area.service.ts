@@ -61,6 +61,12 @@ export class YieldService {
 		return {
 			total: totalPlant,
 			area: resultPlant,
+			diffArea: {
+				m2: totalPlant.m2 - resultPlant.m2,
+				km2: totalPlant.km2 - resultPlant.km2,
+				rai: totalPlant.rai - resultPlant.rai,
+				hexa: totalPlant.hexa - resultPlant.hexa,
+			},
 		}
 	}
 
@@ -137,6 +143,10 @@ export class YieldService {
 		return {
 			total: totalProduct,
 			result: resultProduct,
+			diffResult: {
+				ton: totalProduct.ton - resultProduct.ton,
+				kg: totalProduct.kg - resultProduct.kg,
+			},
 			average: {
 				kg: {
 					m2: average.kg.m2 / average.coun,
