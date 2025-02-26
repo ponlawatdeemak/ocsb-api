@@ -45,12 +45,14 @@ export class OverviewController {
 			},
 		})
 		const burnAreaQuery = await this.dataSource.query(
-			`select COALESCE(SUM(sdba.area_m2),0) as m2,
-				COALESCE(SUM(sdba.area_km2),0) as km2, 
-				COALESCE(SUM(sdba.area_rai),0) as rai,
-				COALESCE(SUM(sdba.area_hexa),0) as hexa 
-			from sugarcane.sugarcane.sugarcane_ds_burn_area sdba 
-			where DATE(sdba.detected_d) BETWEEN $1 and $2
+			`
+			SELECT 
+				COALESCE(SUM(sdba.area_m2), 0) AS m2,
+				COALESCE(SUM(sdba.area_km2), 0) AS km2, 
+				COALESCE(SUM(sdba.area_rai), 0) AS rai,
+				COALESCE(SUM(sdba.area_hexa), 0) AS hexa
+			FROM sugarcane.sugarcane.sugarcane_ds_burn_area_monthly sdba 
+			WHERE TO_DATE(sdba.year || '-' || sdba.month || '-01', 'YYYY-MM-DD') BETWEEN DATE($1) AND DATE($2) 
 			`,
 			[new Date(yearLookupCondition.burnAreaStart), new Date(yearLookupCondition.burnAreaEnd)],
 		)
@@ -207,17 +209,18 @@ export class OverviewController {
 			),
 			aggregated_data AS (
 				SELECT 
-					ms.month,
-					rs.region_id,
-					COALESCE(SUM(sdba.area_m2), 0) AS m2,
-					COALESCE(SUM(sdba.area_km2), 0) AS km2,
-					COALESCE(SUM(sdba.area_rai), 0) AS rai,
-					COALESCE(SUM(sdba.area_hexa), 0) AS hexa
+				    ms.month,
+				    rs.region_id,
+				    COALESCE(SUM(sdba.area_m2), 0) AS m2,
+				    COALESCE(SUM(sdba.area_km2), 0) AS km2,
+				    COALESCE(SUM(sdba.area_rai), 0) AS rai,
+				    COALESCE(SUM(sdba.area_hexa), 0) AS hexa
 				FROM month_series ms
 				CROSS JOIN region_series rs
-				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_burn_area sdba
-					ON DATE_TRUNC('month', sdba.detected_d) = ms.month
-					AND sdba.region_id = rs.region_id
+				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_burn_area_monthly sdba
+				    ON TO_DATE(sdba.year || '-' || sdba.month || '-01', 'YYYY-MM-DD') 
+				       BETWEEN DATE(ms.month) AND (DATE_TRUNC('MONTH', ms.month) + INTERVAL '1 MONTH - 1 day')::DATE
+				    AND sdba.region_id = rs.region_id
 				GROUP BY ms.month, rs.region_id
 			)
 			SELECT 
