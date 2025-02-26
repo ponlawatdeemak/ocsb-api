@@ -51,7 +51,7 @@ export class YieldAreaController {
                 'type', 'Feature',
                 'geometry', ST_AsGeoJSON(sdy.geometry)::jsonb,
                 'properties', jsonb_build_object(
-                	'date', sdy.cls_edate,
+                	'date', TO_CHAR(sdy.cls_edate,'YYYY-MM-DD'),
 					'adm', jsonb_build_object( 
 							'en', sdy.o_adm3e || ' ' || sdy.o_adm2e || ' ' || sdy.o_adm1e,
 							'th', sdy.o_adm3t || ' ' || sdy.o_adm2t || ' ' || sdy.o_adm1t
@@ -115,7 +115,7 @@ export class YieldAreaController {
                     'type', 'Feature',
                     'geometry', ST_AsGeoJSON(sdyp.geometry)::jsonb,
                     'properties', jsonb_build_object(
-                        'date', sdyp.cls_edate,
+                        'date', TO_CHAR(sdyp.cls_edate,'YYYY-MM-DD'),
                         'area',jsonb_build_object(
                             'm2', sdyp.area_m2,
                             'km2', sdyp.area_km2,
@@ -197,7 +197,7 @@ export class YieldAreaController {
                     'type', 'Feature',
                     'geometry', ST_AsGeoJSON(sdra.geometry)::jsonb,
                     'properties', jsonb_build_object(
-                        'date', sdra.cls_edate,
+                        'date', TO_CHAR(sdra.cls_edate,'YYYY-MM-DD'),
                         'repeat', sdra.repeat,
 						 'adm', jsonb_build_object( 
 							'en', sdra.o_adm3e || ' ' || sdra.o_adm2e || ' ' || sdra.o_adm1e,
