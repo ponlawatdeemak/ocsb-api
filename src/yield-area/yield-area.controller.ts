@@ -52,15 +52,15 @@ export class YieldAreaController {
                 'geometry', ST_AsGeoJSON(sdy.geometry)::jsonb,
                 'properties', jsonb_build_object(
                 	'date', sdy.cls_edate,
+					'adm', jsonb_build_object( 
+							'en', sdy.o_adm3e || ' ' || sdy.o_adm2e || ' ' || sdy.o_adm1e,
+							'th', sdy.o_adm3t || ' ' || sdy.o_adm2t || ' ' || sdy.o_adm1t
+						),
                 	'area', jsonb_build_object(
                 		'm2', sdy.area_m2,
 	                	'km2', sdy.area_km2,
 	                	'rai', sdy.area_rai,
-	                	'hexa', sdy.area_hexa,
-						'adm', jsonb_build_object( 
-							'en', sdy.o_adm3e || ' ' || sdy.o_adm2e || ' ' || sdy.o_adm1e,
-							'th', sdy.o_adm3t || ' ' || sdy.o_adm2t || ' ' || sdy.o_adm1t
-						)
+	                	'hexa', sdy.area_hexa
                 	) 
                 )
                 ) as geojson
