@@ -91,7 +91,7 @@ export class BurntAreaController {
 				})
 			}
 			if (payload.admC) {
-				queryBuilderHotspot.andWhere('sh.o_adm1c = :admc or sh.o_adm2c = :admc or sh.o_adm3c = :admc', {
+				queryBuilderHotspot.andWhere('(sh.o_adm1c = :admc or sh.o_adm2c = :admc or sh.o_adm3c = :admc)', {
 					admc: payload.admC,
 				})
 			} else {
@@ -163,9 +163,12 @@ export class BurntAreaController {
 			}
 
 			if (payload.admC) {
-				queryBuilderBurnArea.andWhere('sdba.o_adm1c = :admc or sdba.o_adm2c = :admc or sdba.o_adm3c = :admc', {
-					admc: payload.admC,
-				})
+				queryBuilderBurnArea.andWhere(
+					'(sdba.o_adm1c = :admc or sdba.o_adm2c = :admc or sdba.o_adm3c = :admc)',
+					{
+						admc: payload.admC,
+					},
+				)
 			} else {
 				if (payload.polygon) {
 					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
@@ -237,9 +240,12 @@ export class BurntAreaController {
 			}
 
 			if (payload.admC) {
-				queryBuilderYieldPred.andWhere('sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc', {
-					admc: payload.admC,
-				})
+				queryBuilderYieldPred.andWhere(
+					'(sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc)',
+					{
+						admc: payload.admC,
+					},
+				)
 			} else {
 				if (payload.polygon) {
 					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
