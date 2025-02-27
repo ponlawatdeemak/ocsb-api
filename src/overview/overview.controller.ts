@@ -45,12 +45,14 @@ export class OverviewController {
 			},
 		})
 		const burnAreaQuery = await this.dataSource.query(
-			`select COALESCE(SUM(sdba.area_m2),0) as m2,
-				COALESCE(SUM(sdba.area_km2),0) as km2, 
-				COALESCE(SUM(sdba.area_rai),0) as rai,
-				COALESCE(SUM(sdba.area_hexa),0) as hexa 
-			from sugarcane.sugarcane.sugarcane_ds_burn_area sdba 
-			where DATE(sdba.detected_d) BETWEEN $1 and $2
+			`
+			SELECT 
+				COALESCE(SUM(sdba.area_m2), 0) AS m2,
+				COALESCE(SUM(sdba.area_km2), 0) AS km2, 
+				COALESCE(SUM(sdba.area_rai), 0) AS rai,
+				COALESCE(SUM(sdba.area_hexa), 0) AS hexa
+			FROM sugarcane.sugarcane.sugarcane_ds_burn_area_monthly sdba 
+			WHERE TO_DATE(sdba.year || '-' || sdba.month || '-01', 'YYYY-MM-DD') BETWEEN DATE($1) AND DATE($2) 
 			`,
 			[new Date(yearLookupCondition.burnAreaStart), new Date(yearLookupCondition.burnAreaEnd)],
 		)
@@ -58,14 +60,19 @@ export class OverviewController {
 			burnAreaQuery[0][key] = Number(burnAreaQuery[0][key])
 		})
 		const yieldPredQuery = await this.dataSource.query(
-			`select SUM(sdyp.area_m2) as m2, 
-				SUM(sdyp.area_km2) as km2, 
-				SUM(sdyp.area_rai) as rai, 
-				SUM(sdyp.area_hexa) as hexa, 
-				SUM(sdyp.production_kg) as kg, 
-				SUM(sdyp.production_ton) as ton
-			from sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
-			where sdyp.cls_round = $1 and EXTRACT(YEAR FROM sdyp.cls_edate::DATE) = $2
+			`SELECT 
+				SUM(sdyp.area_m2) AS m2, 
+				SUM(sdyp.area_km2) AS km2, 
+				SUM(sdyp.area_rai) AS rai, 
+				SUM(sdyp.area_hexa) AS hexa, 
+				SUM(sdyp.production_kg) AS kg, 
+				SUM(sdyp.production_ton) AS ton
+			FROM sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
+			WHERE 
+				sdyp.cls_round = $1 
+				AND sdyp.cls_sdate::DATE BETWEEN 
+					TO_DATE($2 || '-11-01', 'YYYY-MM-DD') 
+					AND (DATE_TRUNC('MONTH', TO_DATE((CAST($2 AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
 			`,
 			[yearLookupCondition.sugarcaneRound, yearLookupCondition.sugarcaneYear],
 		)
@@ -202,17 +209,18 @@ export class OverviewController {
 			),
 			aggregated_data AS (
 				SELECT 
-					ms.month,
-					rs.region_id,
-					COALESCE(SUM(sdba.area_m2), 0) AS m2,
-					COALESCE(SUM(sdba.area_km2), 0) AS km2,
-					COALESCE(SUM(sdba.area_rai), 0) AS rai,
-					COALESCE(SUM(sdba.area_hexa), 0) AS hexa
+				    ms.month,
+				    rs.region_id,
+				    COALESCE(SUM(sdba.area_m2), 0) AS m2,
+				    COALESCE(SUM(sdba.area_km2), 0) AS km2,
+				    COALESCE(SUM(sdba.area_rai), 0) AS rai,
+				    COALESCE(SUM(sdba.area_hexa), 0) AS hexa
 				FROM month_series ms
 				CROSS JOIN region_series rs
-				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_burn_area sdba
-					ON DATE_TRUNC('month', sdba.detected_d) = ms.month
-					AND sdba.region_id = rs.region_id
+				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_burn_area_monthly sdba
+				    ON TO_DATE(sdba.year || '-' || sdba.month || '-01', 'YYYY-MM-DD') 
+				       BETWEEN DATE(ms.month) AND (DATE_TRUNC('MONTH', ms.month) + INTERVAL '1 MONTH - 1 day')::DATE
+				    AND sdba.region_id = rs.region_id
 				GROUP BY ms.month, rs.region_id
 			)
 			SELECT 
@@ -269,8 +277,9 @@ export class OverviewController {
 					JOIN sugarcane.sugarcane.year_production yp 
 						ON yp.id = $2 
 					WHERE sdyp2.cls_round = yp.sugarcane_round 
-					AND sdyp2.cls_edate BETWEEN DATE(yp.sugarcane_year || '-01-01')
-					AND DATE(yp.sugarcane_year || '-12-31')
+						AND sdyp2.cls_sdate::DATE BETWEEN 
+						TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD') 
+						AND (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
 				)
 				SELECT 
 					r.region_id, 
@@ -285,17 +294,17 @@ export class OverviewController {
 					ROUND(COALESCE(SUM(sdyp.area_m2), 0)::numeric / (ta.m2::numeric) * 100, 2) AS m2_percent, 
 					ROUND(COALESCE(SUM(sdyp.area_rai), 0)::numeric / (ta.rai::numeric) * 100, 2) AS rai_percent, 
 					ROUND(COALESCE(SUM(sdyp.area_km2), 0)::numeric / (ta.km2::numeric) * 100, 2) AS km2_percent, 
-					ROUND(COALESCE(SUM(sdyp.area_hexa), 0)::numeric / (ta.hexa::numeric) * 100, 2) AS hexa_percent 
+					ROUND(COALESCE(SUM(sdyp.area_hexa), 0)::numeric / (ta.hexa::numeric) * 100, 2) AS hexa_percent
 				FROM sugarcane.sugarcane.regions r 
 				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
 					ON sdyp.region_id = r.region_id
 					AND sdyp.cls_round = $1
-					AND DATE(sdyp.cls_edate) BETWEEN (
-						SELECT DATE(yp.sugarcane_year || '-01-01') 
+					AND DATE(sdyp.cls_sdate) BETWEEN (
+						SELECT TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD')
 						FROM sugarcane.sugarcane.year_production yp 
 						WHERE yp.id = $2 
 					) AND (
-						SELECT DATE(yp.sugarcane_year || '-12-31') 
+						SELECT (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
 						FROM sugarcane.sugarcane.year_production yp 
 						WHERE yp.id = $2 
 					)
@@ -353,14 +362,14 @@ export class OverviewController {
 				r.region_name_en, 
 				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, 
 				ARRAY_AGG(DISTINCT p.province_name_en ORDER BY p.province_name_en) AS provinces_en, 
-				SUM(sdyp.yield_mean_kg_m2) as yield_mean_kg_m2, 
-				SUM(sdyp.yield_mean_kg_km2) as yield_mean_kg_km2, 
-				SUM(sdyp.yield_mean_kg_rai) as yield_mean_kg_rai, 
-				SUM(sdyp.yield_mean_kg_hexa) as yield_mean_kg_hexa, 
-				SUM(sdyp.yield_mean_ton_m2) as yield_mean_ton_m2, 
-				SUM(sdyp.yield_mean_ton_km2) as yield_mean_ton_km2, 
-				SUM(sdyp.yield_mean_ton_rai) as yield_mean_ton_rai, 
-				SUM(sdyp.yield_mean_ton_hexa) as yield_mean_ton_hexa 
+				(SUM(sdyp.yield_sum_kg_m2)/SUM(sdyp.yield_coun)) as yield_mean_kg_m2, 
+				(SUM(sdyp.yield_sum_kg_km2)/SUM(sdyp.yield_coun)) as yield_mean_kg_km2, 
+				(SUM(sdyp.yield_sum_kg_rai)/SUM(sdyp.yield_coun)) as yield_mean_kg_rai, 
+				(SUM(sdyp.yield_sum_kg_hexa)/SUM(sdyp.yield_coun)) as yield_mean_kg_hexa, 
+				(SUM(sdyp.yield_sum_ton_m2)/SUM(sdyp.yield_coun)) as yield_mean_ton_m2, 
+				(SUM(sdyp.yield_sum_ton_km2)/SUM(sdyp.yield_coun)) as yield_mean_ton_km2, 
+				(SUM(sdyp.yield_sum_ton_rai)/SUM(sdyp.yield_coun)) as yield_mean_ton_rai, 
+				(SUM(sdyp.yield_sum_ton_hexa)/SUM(sdyp.yield_coun)) as yield_mean_ton_hexa 
 				FROM sugarcane.sugarcane.regions r 
 				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
 					ON sdyp.region_id = r.region_id
@@ -369,12 +378,12 @@ export class OverviewController {
 						FROM sugarcane.sugarcane.year_production yp 
 						WHERE yp.id = $1 
 					)
-					AND DATE(sdyp.cls_edate) BETWEEN (
-						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
+					AND DATE(sdyp.cls_sdate) BETWEEN (
+						SELECT TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD') 
 						FROM sugarcane.sugarcane.year_production yp 
 						WHERE yp.id = $1 
 					) AND (
-						SELECT TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD') 
+						SELECT (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
 						FROM sugarcane.sugarcane.year_production yp 
 						WHERE yp.id = $1 
 					)
@@ -382,7 +391,7 @@ export class OverviewController {
 					ON p.region_id = r.region_id
 				where r.region_id < 5 
 				group by r.region_id 
-				order by r.region_id ; 
+				order by r.region_id ;
 			`,
 			[payload.id],
 		)
@@ -441,11 +450,11 @@ export class OverviewController {
 			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
 				ON sdyp.region_id = r.region_id 
 				AND sdyp.cls_round = yp.sugarcane_round 
-				AND DATE(sdyp.cls_edate) 
-					BETWEEN TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
-					AND TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD') 
+				AND DATE(sdyp.cls_sdate) 
+					BETWEEN TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD') 
+					AND (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
 			where r.region_id  < 5
-			GROUP BY yp.id, yp.name, r.region_id, yp.name_en, sdyp.cls_edate
+			GROUP BY yp.id, yp.name, r.region_id, yp.name_en, sdyp.cls_sdate
 			ORDER BY yp.id ASC, r.region_id; 
 			`,
 			[payload.id],
@@ -497,15 +506,15 @@ export class OverviewController {
 			repeat_area AS ( 
 				SELECT 
 					region_id,
-					cls_round,
-					cls_edate,
+					repeat,
+					cls_sdate,
 					SUM(area_m2) as area_m2,
 					SUM(area_km2) as area_km2,
 					SUM(area_rai) as area_rai,
 					SUM(area_hexa) as area_hexa
 				FROM sugarcane.sugarcane.sugarcane_ds_repeat_area 
 				WHERE repeat = 3 
-				GROUP BY region_id, cls_round, cls_edate
+				GROUP BY region_id, repeat, cls_sdate
 			)
 			SELECT 
 				yp.id AS year_id, 
@@ -519,25 +528,24 @@ export class OverviewController {
 				COALESCE(100 * ra.area_m2 / NULLIF(SUM(sdra.area_m2), 0), 0) AS m2, 
 				COALESCE(100 * ra.area_km2 / NULLIF(SUM(sdra.area_km2), 0), 0) AS km2, 
 				COALESCE(100 * ra.area_rai / NULLIF(SUM(sdra.area_rai), 0), 0) AS rai, 
-				COALESCE(100 * ra.area_hexa / NULLIF(SUM(sdra.area_hexa), 0), 0) AS hexa 
+				COALESCE(100 * ra.area_hexa / NULLIF(SUM(sdra.area_hexa), 0), 0) AS hexa ,
+				sdra.cls_sdate
 			FROM last_3_years yp 
 			CROSS JOIN sugarcane.sugarcane.regions r 
 			left join sugarcane.sugarcane.provinces p on p.region_id = r.region_id
 			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_repeat_area sdra 
 				ON sdra.region_id = r.region_id  
-				AND sdra.cls_round = yp.sugarcane_round 
-				AND sdra.cls_edate BETWEEN 
-					TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
-					AND TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD')
+				AND sdra.cls_sdate BETWEEN 
+					TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD') 
+					AND (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
 			LEFT JOIN repeat_area ra  
 				ON ra.region_id = r.region_id 
-				AND ra.cls_round = yp.sugarcane_round 
-				AND ra.cls_edate BETWEEN 
-					TO_TIMESTAMP(yp.sugarcane_year || '-01-01', 'YYYY-MM-DD') 
-					AND TO_TIMESTAMP(yp.sugarcane_year || '-12-31', 'YYYY-MM-DD')
-			where r.region_id < 5	
-			GROUP BY yp.id, yp.name, yp.name_en, r.region_id, ra.area_m2, ra.area_km2 ,ra.area_rai,ra.area_hexa
-			ORDER BY yp.id ASC, r.region_id; 
+				AND ra.cls_sdate BETWEEN 
+					TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD')  
+					AND (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
+			where r.region_id < 5
+			GROUP BY yp.id, yp.name, yp.name_en, r.region_id, ra.area_m2, ra.area_km2 ,ra.area_rai,ra.area_hexa,sdra.cls_sdate
+			ORDER BY yp.id ASC, r.region_id;  
 			`,
 			[payload.id],
 		)

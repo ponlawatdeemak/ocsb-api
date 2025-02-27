@@ -1,4 +1,4 @@
-import { hotspotType, hotspotTypeCode, mapTypeCode, ResponseDto } from '@interface/config/app.config'
+import { hotspotTypeCode, mapTypeCode, ResponseDto } from '@interface/config/app.config'
 import {
 	GetBurntBurntAreaDtoIn,
 	GetDashBoardBurntAreaDtoIn,
@@ -17,7 +17,7 @@ import { Controller, Get, Query, UseGuards, Res, BadRequestException } from '@ne
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm'
 import { AuthGuard } from 'src/core/auth.guard'
 import { convertPolygonToWKT, validateDate, validatePayload } from 'src/core/utils'
-import { Repository, DataSource, Brackets } from 'typeorm'
+import { Repository, DataSource } from 'typeorm'
 import { BurntAreaService } from './burnt-area.service'
 import { errorResponse } from '@interface/config/error.config'
 
