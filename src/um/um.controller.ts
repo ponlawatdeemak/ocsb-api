@@ -214,6 +214,7 @@ export class UMController {
 	async put(@Request() req, @User() user: UserMeta): Promise<ResponseDto<PutUMDtoOut>> {
 		const userId = req.params.userId
 		const payload: PutUMDtoIn = req.body
+		if (!userId) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		const existingUser = await this.userEntity.findOne({
 			where: { userId, isDeleted: false },
 			relations: ['regions'],
@@ -251,6 +252,7 @@ export class UMController {
 	@UseGuards(AuthGuard)
 	async delete(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteUMDtoOut>> {
 		const params: DeleteUMDtoIn = req.params
+		if (!params.userId) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
@@ -483,6 +485,7 @@ export class UMController {
 	@Get('/img/:userId')
 	async getImage(@Request() req, @Res() res) {
 		const params: GetImageUserDtoIn = req.params
+		if (!params.userId) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		if (!existingUser.img) {
@@ -507,6 +510,7 @@ export class UMController {
 			throw new BadRequestException(errorResponse.NO_FILE_UPLOAD)
 		}
 		const base64Image = file.buffer.toString('base64')
+		if (!params.userId) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
@@ -522,6 +526,7 @@ export class UMController {
 	@UseGuards(AuthGuard)
 	async deleteImage(@Request() req, @User() user: UserMeta): Promise<ResponseDto<DeleteImageUserDtoOut>> {
 		const params: DeleteImageUserDtoIn = req.params
+		if (!params.userId) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		const existingUser = await this.userEntity.findOne({ where: { userId: params.userId, isDeleted: false } })
 		if (!existingUser) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 		if (!existingUser.img) {
