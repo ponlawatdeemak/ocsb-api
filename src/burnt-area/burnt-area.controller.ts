@@ -97,7 +97,7 @@ export class BurntAreaController {
 			}
 			if (payload.polygon) {
 				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-				queryBuilderHotspot.andWhere('ST_Within(sh.geometry, ST_GeomFromText(:polygon, 4326))', {
+				queryBuilderHotspot.andWhere('ST_Intersects(sh.geometry, ST_GeomFromText(:polygon, 4326))', {
 					polygon: formatePolygon,
 				})
 			}
@@ -172,7 +172,7 @@ export class BurntAreaController {
 
 			if (payload.polygon) {
 				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-				queryBuilderBurnArea.andWhere('ST_Within(sdba.geometry, ST_GeomFromText(:polygon, 4326))', {
+				queryBuilderBurnArea.andWhere('ST_Intersects(sdba.geometry, ST_GeomFromText(:polygon, 4326))', {
 					polygon: formatePolygon,
 				})
 			}
@@ -246,7 +246,7 @@ export class BurntAreaController {
 			}
 			if (payload.polygon) {
 				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-				queryBuilderYieldPred.andWhere('ST_Within(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
+				queryBuilderYieldPred.andWhere('ST_Intersects(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
 					polygon: formatePolygon,
 				})
 			}
