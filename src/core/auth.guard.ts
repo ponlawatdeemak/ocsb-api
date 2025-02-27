@@ -25,7 +25,7 @@ export class AuthGuard implements CanActivate {
 
 		try {
 			const data = jwt.verify(token, this.configService.get('JWT_SECRET')) as UserJwtPayload
-			if (!data || data.id) throw new UnauthorizedException(errorResponse.USER_NOT_FOUND)
+			if (!data && data.id) throw new UnauthorizedException(errorResponse.USER_NOT_FOUND)
 			const user = await this.userEntity.findOne({
 				where: { userId: data.id, isDeleted: false },
 				relations: ['role'],
