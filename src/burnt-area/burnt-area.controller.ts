@@ -91,16 +91,15 @@ export class BurntAreaController {
 				})
 			}
 			if (payload.admC) {
-				queryBuilderHotspot.andWhere('sh.o_adm1c = :admc or sh.o_adm2c = :admc or sh.o_adm3c = :admc', {
+				queryBuilderHotspot.andWhere('(sh.o_adm1c = :admc or sh.o_adm2c = :admc or sh.o_adm3c = :admc)', {
 					admc: payload.admC,
 				})
-			} else {
-				if (payload.polygon) {
-					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-					queryBuilderHotspot.andWhere('ST_Within(sh.geometry, ST_GeomFromText(:polygon, 4326))', {
-						polygon: formatePolygon,
-					})
-				}
+			}
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderHotspot.andWhere('ST_Within(sh.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
+				})
 			}
 			hotspots = await queryBuilderHotspot.getRawMany().then((data) => {
 				return data.map((item) => item.geojson)
@@ -163,16 +162,19 @@ export class BurntAreaController {
 			}
 
 			if (payload.admC) {
-				queryBuilderBurnArea.andWhere('sdba.o_adm1c = :admc or sdba.o_adm2c = :admc or sdba.o_adm3c = :admc', {
-					admc: payload.admC,
+				queryBuilderBurnArea.andWhere(
+					'(sdba.o_adm1c = :admc or sdba.o_adm2c = :admc or sdba.o_adm3c = :admc)',
+					{
+						admc: payload.admC,
+					},
+				)
+			}
+
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderBurnArea.andWhere('ST_Within(sdba.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
 				})
-			} else {
-				if (payload.polygon) {
-					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-					queryBuilderBurnArea.andWhere('ST_Within(sdba.geometry, ST_GeomFromText(:polygon, 4326))', {
-						polygon: formatePolygon,
-					})
-				}
 			}
 
 			burnArea = await queryBuilderBurnArea.getRawMany().then((data) => {
@@ -237,16 +239,16 @@ export class BurntAreaController {
 			}
 
 			if (payload.admC) {
-				queryBuilderYieldPred.andWhere('sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc', {
-					admc: payload.admC,
+				queryBuilderYieldPred.andWhere(
+					'(sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc)',
+					{ admc: payload.admC },
+				)
+			}
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderYieldPred.andWhere('ST_Within(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
 				})
-			} else {
-				if (payload.polygon) {
-					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-					queryBuilderYieldPred.andWhere('ST_Within(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
-						polygon: formatePolygon,
-					})
-				}
 			}
 
 			yieldPred = await queryBuilderYieldPred.getRawMany().then((data) => {
