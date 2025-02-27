@@ -13,18 +13,15 @@ import {
 } from '@interface/dto/yield-area/yield-area.dto-out'
 import { SugarcaneDsRepeatAreaEntity, SugarcaneDsYieldPredEntity } from '@interface/entities'
 import { Controller, Get, Query, Res, BadRequestException, UseGuards } from '@nestjs/common'
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
+import { InjectRepository } from '@nestjs/typeorm'
 import { AuthGuard } from 'src/core/auth.guard'
 import { convertPolygonToWKT, validateDate, validatePayload } from 'src/core/utils'
-import { DataSource, Repository } from 'typeorm'
+import { Repository } from 'typeorm'
 import { YieldService } from './yield-area.service'
 
 @Controller('yield-area')
 export class YieldAreaController {
 	constructor(
-		@InjectDataSource()
-		private readonly dataSource: DataSource,
-
 		@InjectRepository(SugarcaneDsYieldPredEntity)
 		private readonly sugarcaneDsYieldPredEntity: Repository<SugarcaneDsYieldPredEntity>,
 
@@ -75,7 +72,7 @@ export class YieldAreaController {
 				})
 			}
 			if (payload.admC) {
-				queryBuilderPlant.andWhere('sdy.o_adm1c = :admc or sdy.o_adm2c = :admc or sdy.o_adm3c = :admc', {
+				queryBuilderPlant.andWhere('(sdy.o_adm1c = :admc or sdy.o_adm2c = :admc or sdy.o_adm3c = :admc)', {
 					admc: payload.admC,
 				})
 			} else {
@@ -157,7 +154,7 @@ export class YieldAreaController {
 				})
 			}
 			if (payload.admC) {
-				queryBuilderProduct.andWhere('sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc', {
+				queryBuilderProduct.andWhere('(sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc)', {
 					admc: payload.admC,
 				})
 			} else {
@@ -227,7 +224,7 @@ export class YieldAreaController {
 				})
 			}
 			if (payload.admC) {
-				queryBuilderRePlant.andWhere('sdra.o_adm1c = :admc or sdra.o_adm2c = :admc or sdra.o_adm3c = :admc', {
+				queryBuilderRePlant.andWhere('(sdra.o_adm1c = :admc or sdra.o_adm2c = :admc or sdra.o_adm3c = :admc)', {
 					admc: payload.admC,
 				})
 			} else {
