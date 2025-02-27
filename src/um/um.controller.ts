@@ -347,6 +347,15 @@ export class UMController {
 
 		for (let jsonIndex = 0; jsonIndex < jsonData.length; jsonIndex++) {
 			const row = jsonData[jsonIndex]
+			Object.keys(row).forEach((oldCol) => {
+				const newCol = Buffer.from(oldCol, 'ascii').toString('utf-8')
+				let newValue = ''
+				if (row[oldCol] && typeof row[oldCol] === 'string') {
+					newValue = Buffer.from(row[oldCol], 'ascii').toString('utf-8')
+				}
+				row[newCol] = newValue
+				delete row[oldCol]
+			})
 			const validationResult = await validateRow(row, jsonIndex)
 
 			if (validationResult.hasError) {
