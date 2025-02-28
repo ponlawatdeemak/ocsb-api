@@ -59,6 +59,7 @@ export class ProfileController {
 	): Promise<ResponseDto<ChangePasswordProfileDtoOut>> {
 		const id = user.id
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
+			if (!id) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 			const userRow = await transactionalEntityManager.findOneBy(UsersEntity, { userId: id })
 
 			const IsValidOldPassword = await bcrypt.compare(putData.oldPassword, userRow.password)

@@ -1,5 +1,5 @@
 import { ResponseDto } from '@interface/config/app.config'
-import { Controller, Get, Query } from '@nestjs/common'
+import { Controller, Get, Query, BadRequestException } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Repository, Between } from 'typeorm'
 import {
@@ -23,6 +23,7 @@ import {
 } from '@interface/dto/overview/overview.dto-out'
 import { YearProductionEntity } from '@interface/entities'
 import { SugarcaneHotspotEntity } from '@interface/entities/sugarcane-hotspot.entity'
+import { errorResponse } from '@interface/config/error.config'
 @Controller('overview')
 export class OverviewController {
 	constructor(
@@ -38,6 +39,7 @@ export class OverviewController {
 
 	@Get('summary')
 	async getSummary(@Query() payload: GetSummaryOverviewDtoIn): Promise<ResponseDto<GetSummaryOverviewDtoOut>> {
+		if (!payload.id) throw new BadRequestException(errorResponse.ID_NOTFOUND)
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 		const cntHotspot = await this.sugarcaneHotspotEntity.count({
 			where: {
@@ -100,6 +102,7 @@ export class OverviewController {
 	async getHeatPoints(
 		@Query() payload: GetHeatPointsOverviewDtoIn,
 	): Promise<ResponseDto<GetHeatPointsOverviewDtoOut[]>> {
+		if (!payload.id) throw new BadRequestException(errorResponse.ID_NOTFOUND)
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 		const queryResult = await this.dataSource.query(
 			`with filtered_data as (
@@ -147,6 +150,7 @@ export class OverviewController {
 	async getHeatPointsSugarcane(
 		@Query() payload: GetHeatPointsSugarcaneOverviewDtoIn,
 	): Promise<ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut[]>> {
+		if (!payload.id) throw new BadRequestException(errorResponse.ID_NOTFOUND)
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 		const queryResult = await this.dataSource.query(
 			`SELECT 
@@ -265,6 +269,7 @@ export class OverviewController {
 
 	@Get('plant')
 	async getPlant(@Query() payload: GetPlantOverviewDtoIn): Promise<ResponseDto<GetPlantOverviewDtoOut>> {
+		if (!payload.id) throw new BadRequestException(errorResponse.ID_NOTFOUND)
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
 		const queryResult = await this.dataSource.query(
 			`WITH total_area AS ( 

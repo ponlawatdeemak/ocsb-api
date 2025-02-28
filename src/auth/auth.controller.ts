@@ -120,6 +120,7 @@ export class AuthController {
 	async refreshToken(@Body() body: RefreshTokenAuthDtoIn): Promise<ResponseDto<RefreshTokenAuthDtoOut>> {
 		try {
 			const data = jwt.verify(body.refreshToken, process.env.JWT_SECRET_REFRESH) as UserJwtPayload
+			if (!data && !data.id) throw new UnauthorizedException(errorResponse.INVALID_TOKEN)
 			const user = await this.userEntity.findOne({ where: { userId: data.id } })
 			if (!user) {
 				throw new UnauthorizedException(errorResponse.USER_NOT_FOUND)
@@ -146,7 +147,7 @@ export class AuthController {
 	@Post('/forget-password')
 	async forgotPassword(@Body() payload: ForgotPasswordAuthDtoIn): Promise<ResponseDto<ForgotPasswordAuthDtoOut>> {
 		const email = payload.email
-
+		if (!email) throw new BadRequestException(errorResponse.INVALID_EMAIL)
 		const user = await this.userEntity.findOne({ where: { email, isDeleted: false, isActive: true } })
 		if (!user) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 
@@ -170,7 +171,7 @@ export class AuthController {
 	@Post('/verify-token')
 	async verifyToken(@Body() payload: VerifyTokenAuthDtoIn): Promise<ResponseDto<VerifyTokenAuthDtoOut>> {
 		const resetPasswordToken = payload.token
-
+		if (!resetPasswordToken) throw new BadRequestException(errorResponse.INVALID_TOKEN)
 		const user = await this.userEntity.findOneBy({ resetPasswordToken, isDeleted: false, isActive: true })
 		if (!user) throw new BadRequestException(errorResponse.INVALID_TOKEN)
 
@@ -186,6 +187,7 @@ export class AuthController {
 		const resetPasswordToken = payload.token
 
 		await this.entityManager.transaction(async (transactionalEntityManager) => {
+			if (!resetPasswordToken) throw new BadRequestException(errorResponse.INVALID_TOKEN)
 			const user = await transactionalEntityManager.findOneBy(UsersEntity, {
 				resetPasswordToken,
 				isDeleted: false,
