@@ -3,7 +3,7 @@ import { GetDashBoardBurntAreaDtoIn } from '@interface/dto/brunt-area/brunt-area
 import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { generateMonthsFromRange, getStartAndEndOfMonth, sumby, validatePayload } from 'src/core/utils'
+import { generateMonthsFromRange, getRound, getStartAndEndOfMonth, sumby, validatePayload } from 'src/core/utils'
 import { Repository, Brackets } from 'typeorm'
 
 @Injectable()
@@ -180,10 +180,22 @@ export class BurntAreaService {
 			)
 			.where('syp.regionId IS NOT NULL')
 
-		if (payload.startDate && payload.endDate) {
-			queryBuilderYieldTotal.andWhere('DATE(syp.clsEdate) BETWEEN :startDate AND :endDate', {
-				startDate: payload.startDate,
-				endDate: payload.endDate,
+		// if (payload.startDate && payload.endDate) {
+		// 	queryBuilderYieldTotal.andWhere('DATE(syp.clsEdate) BETWEEN :startDate AND :endDate', {
+		// 		startDate: payload.startDate,
+		// 		endDate: payload.endDate,
+		// 	})
+		// }
+		// เอา endDate ไปหาว่าข้อมูลตกในรอบไหนแล้วเอามาแสดง
+		if (payload.endDate) {
+			const dataSplit = payload.endDate.split('-')
+			const month = Number(dataSplit[1])
+			const year = Number(dataSplit[0])
+			const round = getRound(month, year)
+			queryBuilderYieldTotal.andWhere({ clsRound: round.round })
+			queryBuilderYieldTotal.andWhere('syp.cls_sdate >= :startDate AND syp.cls_edate <= :endDate', {
+				startDate: round.sDate,
+				endDate: round.eDate,
 			})
 		}
 
@@ -209,15 +221,25 @@ export class BurntAreaService {
 					}
 				}),
 			)
-		if (payload.startDate && payload.endDate) {
-			queryBuilderYieldPred.andWhere('DATE(syp.cls_edate) BETWEEN :startDate AND :endDate', {
-				startDate: payload.startDate,
-				endDate: payload.endDate,
+		// if (payload.startDate && payload.endDate) {
+		// 	queryBuilderYieldPred.andWhere('DATE(syp.cls_edate) BETWEEN :startDate AND :endDate', {
+		// 		startDate: payload.startDate,
+		// 		endDate: payload.endDate,
+		// 	})
+		// }
+		if (payload.endDate) {
+			const dataSplit = payload.endDate.split('-')
+			const month = Number(dataSplit[1])
+			const year = Number(dataSplit[0])
+			const round = getRound(month, year)
+			queryBuilderYieldPred.andWhere({ clsRound: round.round })
+			queryBuilderYieldPred.andWhere('syp.cls_sdate >= :startDate AND syp.cls_edate <= :endDate', {
+				startDate: round.sDate,
+				endDate: round.eDate,
 			})
 		}
 
 		const yieldPred = await queryBuilderYieldPred.getRawOne()
-
 		return {
 			total: {
 				m2: parseFloat(totalYieldPred.area_m2),

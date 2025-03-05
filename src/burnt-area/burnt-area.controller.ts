@@ -16,7 +16,7 @@ import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspot
 import { Controller, Get, Query, UseGuards, Res, BadRequestException } from '@nestjs/common'
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm'
 import { AuthGuard } from 'src/core/auth.guard'
-import { convertPolygonToWKT, validateDate, validatePayload } from 'src/core/utils'
+import { convertPolygonToWKT, getRound, validateDate, validatePayload } from 'src/core/utils'
 import { Repository, DataSource } from 'typeorm'
 import { BurntAreaService } from './burnt-area.service'
 import { errorResponse } from '@interface/config/error.config'
@@ -94,13 +94,12 @@ export class BurntAreaController {
 				queryBuilderHotspot.andWhere('(sh.o_adm1c = :admc or sh.o_adm2c = :admc or sh.o_adm3c = :admc)', {
 					admc: payload.admC,
 				})
-			} else {
-				if (payload.polygon) {
-					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-					queryBuilderHotspot.andWhere('ST_Within(sh.geometry, ST_GeomFromText(:polygon, 4326))', {
-						polygon: formatePolygon,
-					})
-				}
+			}
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderHotspot.andWhere('ST_Intersects(sh.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
+				})
 			}
 			hotspots = await queryBuilderHotspot.getRawMany().then((data) => {
 				return data.map((item) => item.geojson)
@@ -169,13 +168,13 @@ export class BurntAreaController {
 						admc: payload.admC,
 					},
 				)
-			} else {
-				if (payload.polygon) {
-					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-					queryBuilderBurnArea.andWhere('ST_Within(sdba.geometry, ST_GeomFromText(:polygon, 4326))', {
-						polygon: formatePolygon,
-					})
-				}
+			}
+
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderBurnArea.andWhere('ST_Intersects(sdba.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
+				})
 			}
 
 			burnArea = await queryBuilderBurnArea.getRawMany().then((data) => {
@@ -232,27 +231,30 @@ export class BurntAreaController {
 				)
 				.where('sdyp.region_id IS NOT NULL')
 
-			if (payload.startDate && payload.endDate) {
-				queryBuilderYieldPred.andWhere('DATE(sdyp.cls_edate) BETWEEN :startDate AND :endDate', {
-					startDate: payload.startDate,
-					endDate: payload.endDate,
+			// เอา endDate ไปหาว่าข้อมูลตกในรอบไหนแล้วเอามาแสดง
+			if (payload.endDate) {
+				const dataSplit = payload.endDate.split('-')
+				const month = Number(dataSplit[1])
+				const year = Number(dataSplit[0])
+				const round = getRound(month, year)
+				queryBuilderYieldPred.andWhere({ clsRound: round.round })
+				queryBuilderYieldPred.andWhere('sdyp.cls_sdate >= :startDate AND sdyp.cls_edate <= :endDate', {
+					startDate: round.sDate,
+					endDate: round.eDate,
 				})
 			}
 
 			if (payload.admC) {
 				queryBuilderYieldPred.andWhere(
 					'(sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc)',
-					{
-						admc: payload.admC,
-					},
+					{ admc: payload.admC },
 				)
-			} else {
-				if (payload.polygon) {
-					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-					queryBuilderYieldPred.andWhere('ST_Within(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
-						polygon: formatePolygon,
-					})
-				}
+			}
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderYieldPred.andWhere('ST_Intersects(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
+				})
 			}
 
 			yieldPred = await queryBuilderYieldPred.getRawMany().then((data) => {

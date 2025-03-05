@@ -120,7 +120,7 @@ export class AuthController {
 	async refreshToken(@Body() body: RefreshTokenAuthDtoIn): Promise<ResponseDto<RefreshTokenAuthDtoOut>> {
 		try {
 			const data = jwt.verify(body.refreshToken, process.env.JWT_SECRET_REFRESH) as UserJwtPayload
-			if (!data && !data.id) throw new UnauthorizedException(errorResponse.INVALID_TOKEN)
+			if (!data?.id) throw new UnauthorizedException(errorResponse.INVALID_TOKEN)
 			const user = await this.userEntity.findOne({ where: { userId: data.id } })
 			if (!user) {
 				throw new UnauthorizedException(errorResponse.USER_NOT_FOUND)

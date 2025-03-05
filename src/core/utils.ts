@@ -145,3 +145,39 @@ export function validateDate(startDate: string, endDate: string) {
 		return true
 	}
 }
+
+// หารอบของข้อมูล ด้วยเดือนและปีค.ศ.
+export function getRound(month: number, year: number): { round: number; sDate: string; eDate: string } {
+	if (month) {
+		const roundConfig = [
+			[11, 12, 1, 2],
+			[3, 4, 5, 6],
+			[7, 8, 9, 10],
+		]
+		const idx = roundConfig.findIndex((item) => item.includes(month))
+		const round = idx + 1
+		let roundYearStart = month === 11 || month === 12 ? year : year + 1
+		let roundYearEnd = month === 11 || month === 12 ? year + 1 : year
+		if (round === 1) {
+			if (month === 11 || month === 12) {
+				roundYearStart = year
+				roundYearEnd = year + 1
+			} else {
+				roundYearStart = year - 1
+				roundYearEnd = year
+			}
+		} else {
+			roundYearStart = year
+			roundYearEnd = year
+		}
+		const startMonth = roundConfig[idx][0] < 10 ? `0${roundConfig[idx][0]}` : roundConfig[idx][0]
+		const sDate = `${roundYearStart}-${startMonth}-01`
+		const endMonth = roundConfig[idx][roundConfig[idx].length - 1]
+		let eDate: Date | string = new Date(roundYearEnd, endMonth, 0)
+		eDate.setHours(eDate.getHours() + 7)
+		eDate = eDate.toISOString().substring(0, 10)
+		return { round, sDate, eDate }
+	} else {
+		throw new Error('Month not found.')
+	}
+}
