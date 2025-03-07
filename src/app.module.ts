@@ -7,6 +7,7 @@ import { UMController } from './um/um.controller'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { TypeOrmConfigService } from '@libs/typeorm'
 import {
+	BoundaryRegionEntity,
 	PositionEntity,
 	ProvincesEntity,
 	RegionsEntity,
@@ -42,6 +43,7 @@ const imports = [
 		SugarcaneDsBurnAreaEntity,
 		SugarcaneDsYieldPredEntity,
 		SugarcaneDsRepeatAreaEntity,
+		BoundaryRegionEntity,
 	]),
 	AuthModule,
 ]
