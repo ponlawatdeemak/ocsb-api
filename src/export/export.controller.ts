@@ -3,9 +3,9 @@ import { ExportService } from './export.service'
 import { ExportHotspotBurntAreaDtoIn, ExportYieldAreaDtoIn } from '@interface/dto/export/export.dto-in'
 import { validatePayload } from 'src/core/utils'
 import { mapTypeCode, yieldMapTypeCode } from '@interface/config/app.config'
-import { reportName } from '@interface/config/report.config'
 import { AuthGuard } from 'src/core/auth.guard'
-
+import * as fs from 'fs'
+import * as path from 'path'
 @Controller('export')
 export class ExportController {
 	constructor(private readonly exportService: ExportService) {}
@@ -18,17 +18,17 @@ export class ExportController {
 
 		if (mapTypeFilter.includes(mapTypeCode.hotspots)) {
 			const hotspotData = await this.exportService.bufferHotspotService(payload)
-			arrayResponse.push({ fileName: reportName.hotspont, data: hotspotData })
+			arrayResponse.push(hotspotData)
 		}
 
 		if (mapTypeFilter.includes(mapTypeCode.burnArea)) {
 			const burnAreaData = await this.exportService.bufferBurnAreaService(payload)
-			arrayResponse.push({ fileName: reportName.burntArea, data: burnAreaData })
+			arrayResponse.push(burnAreaData)
 		}
 
 		if (mapTypeFilter.includes(mapTypeCode.plant)) {
 			const yieldPredData = await this.exportService.bufferYieldAreaService(payload)
-			arrayResponse.push({ fileName: reportName.plant, data: yieldPredData })
+			arrayResponse.push(yieldPredData)
 		}
 		if (arrayResponse.length > 0) {
 			const zipStream: any = await this.exportService.generateZip(arrayResponse)
@@ -38,6 +38,19 @@ export class ExportController {
 				'Content-Type': 'application/zip',
 				'Content-Disposition': zipname,
 			})
+			zipStream.on('end', () => {
+				arrayResponse.forEach((file) => {
+					const folderPath = path.dirname(file)
+					fs.rm(folderPath, { recursive: true, force: true }, (err) => {
+						if (err) {
+							console.error(`Error deleting folder: ${folderPath}`, err)
+						} else {
+							console.log(`Deleted folder: ${folderPath} and all its contents`)
+						}
+					})
+				})
+			})
+
 			return zipStream.pipe(res)
 		} else {
 			return res.send({})
@@ -52,12 +65,12 @@ export class ExportController {
 
 		if (mapTypeFilter.includes(yieldMapTypeCode.plant) || mapTypeFilter.includes(yieldMapTypeCode.product)) {
 			const yieldPredData = await this.exportService.bufferYieldAreaService(payload)
-			arrayResponse.push({ fileName: reportName.plant, data: yieldPredData })
+			arrayResponse.push(yieldPredData)
 		}
 
 		if (mapTypeFilter.includes(yieldMapTypeCode.repeat)) {
 			const RepearAreaData = await this.exportService.bufferRepeatAreaService(payload)
-			arrayResponse.push({ fileName: reportName.plantRepeat, data: RepearAreaData })
+			arrayResponse.push(RepearAreaData)
 		}
 		if (arrayResponse.length > 0) {
 			const zipStream: any = await this.exportService.generateZip(arrayResponse)
@@ -66,6 +79,18 @@ export class ExportController {
 			res.set({
 				'Content-Type': 'application/zip',
 				'Content-Disposition': zipname,
+			})
+			zipStream.on('end', () => {
+				arrayResponse.forEach((file) => {
+					const folderPath = path.dirname(file)
+					fs.rm(folderPath, { recursive: true, force: true }, (err) => {
+						if (err) {
+							console.error(`Error deleting folder: ${folderPath}`, err)
+						} else {
+							console.log(`Deleted folder: ${folderPath} and all its contents`)
+						}
+					})
+				})
 			})
 			return zipStream.pipe(res)
 		} else {

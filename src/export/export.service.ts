@@ -13,7 +13,15 @@ import { Repository } from 'typeorm'
 import { ExportHotspotBurntAreaDtoIn, ExportYieldAreaDtoIn } from '@interface/dto/export/export.dto-in'
 import { convertPolygonToWKT, getRound, validatePayload } from 'src/core/utils'
 import { hotspotTypeCode } from '@interface/config/app.config'
-import { columnsBurnArea, columnsHotspot, columnsRepeatArea, columnsYieldArea } from '@interface/config/report.config'
+import {
+	columnsBurnArea,
+	columnsHotspot,
+	columnsRepeatArea,
+	columnsYieldArea,
+	reportName,
+} from '@interface/config/report.config'
+import * as fs from 'fs'
+import * as path from 'path'
 
 @Injectable()
 export class ExportService {
@@ -31,21 +39,30 @@ export class ExportService {
 		private readonly sugarcaneDsRepeatAreaEntity: Repository<SugarcaneDsRepeatAreaEntity>,
 	) {}
 
-	async generateCsv(columns: string[], rows: any[][]): Promise<Buffer> {
+	async generateCsv(columns: string[], rows: any[][], fileName: string) {
+		const exportDir = path.join(__dirname, 'export', 'temp')
+		const uniqueFolder = `csv_${Date.now()}`
+		const folderPath = path.join(exportDir, uniqueFolder)
+		const filePath = path.join(folderPath, `${fileName}.csv`)
+		if (!fs.existsSync(folderPath)) {
+			fs.mkdirSync(folderPath, { recursive: true })
+		}
 		const workbook = new ExcelJS.Workbook()
-		const worksheet = workbook.addWorksheet('Data')
+		const worksheet = workbook.addWorksheet(fileName)
 		worksheet.addRow(columns)
 		rows.forEach((row) => worksheet.addRow(row))
 		const csvBuffer: any = await workbook.csv.writeBuffer()
 		const utf8Buffer = Buffer.concat([Buffer.from('\uFEFF', 'utf8'), csvBuffer])
-		return utf8Buffer
+		fs.writeFileSync(filePath, utf8Buffer)
+		return filePath
 	}
 
 	async generateZip(Arraybuffer): Promise<Buffer> {
 		const zip = new yazl.ZipFile()
 		for (let index = 0; index < Arraybuffer.length; index++) {
 			const element = Arraybuffer[index]
-			zip.addBuffer(element.data, `${element.fileName}.csv`)
+			const fileName = path.basename(element)
+			zip.addFile(element, fileName)
 		}
 		const zipStream = new PassThrough()
 		zip.outputStream.pipe(zipStream)
@@ -129,7 +146,7 @@ export class ExportService {
 			})
 
 			const reCheckColumns = await this.validateColumnsInCSV(columnsHotspot, payload.area, payload.weight)
-			const bufferHotspot = await this.generateCsv(reCheckColumns, hotspot)
+			const bufferHotspot = await this.generateCsv(reCheckColumns, hotspot, reportName.hotspont)
 			return bufferHotspot
 		}
 	}
@@ -164,7 +181,7 @@ export class ExportService {
 			return item.data || []
 		})
 		const reCheckColumns = await this.validateColumnsInCSV(columnsBurnArea, payload.area, payload.weight)
-		const bufferBurnArea = await this.generateCsv(reCheckColumns, burnArea)
+		const bufferBurnArea = await this.generateCsv(reCheckColumns, burnArea, reportName.burntArea)
 		return bufferBurnArea
 	}
 
@@ -202,7 +219,7 @@ export class ExportService {
 			return item.data || []
 		})
 		const reCheckColumns = await this.validateColumnsInCSV(columnsYieldArea, payload.area, payload.weight)
-		const bufferYieldArea = await this.generateCsv(reCheckColumns, yieldArea)
+		const bufferYieldArea = await this.generateCsv(reCheckColumns, yieldArea, reportName.plant)
 		return bufferYieldArea
 	}
 
@@ -242,7 +259,7 @@ export class ExportService {
 			return item.data || []
 		})
 		const reCheckColumns = await this.validateColumnsInCSV(columnsRepeatArea, payload.area, payload.weight)
-		const bufferRepeatArea = await this.generateCsv(reCheckColumns, repeatArea)
+		const bufferRepeatArea = await this.generateCsv(reCheckColumns, repeatArea, reportName.plantRepeat)
 		return bufferRepeatArea
 	}
 }
