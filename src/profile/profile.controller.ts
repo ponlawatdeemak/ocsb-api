@@ -7,7 +7,7 @@ import * as bcrypt from 'bcryptjs'
 import { User } from 'src/core/user.decorator'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
 import { Repository, EntityManager } from 'typeorm'
-import { UsersEntity } from '@interface/entities'
+import { BoundaryRegionEntity, UsersEntity } from '@interface/entities'
 import { hashPassword } from 'src/core/utils'
 import { errorResponse } from '@interface/config/error.config'
 import { ChangePasswordProfileDtoIn } from '@interface/dto/profile/profile.dto-in'
@@ -19,6 +19,9 @@ export class ProfileController {
 
 		@InjectRepository(UsersEntity)
 		private readonly userEntity: Repository<UsersEntity>,
+
+		@InjectRepository(BoundaryRegionEntity)
+		private readonly boundaryRegionEntity: Repository<BoundaryRegionEntity>,
 	) {}
 
 	@Get('')
@@ -43,11 +46,32 @@ export class ProfileController {
 			.leftJoinAndSelect('users.region', 'region')
 			.leftJoinAndSelect('users.province', 'province')
 			.where({ userId: user.id })
-			.getMany()
-		if (result.length === 0) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
-		const hasImage = !!result[0].img
-		delete result[0].img
-		const temp: GetProfileDtoOut = { ...result[0], hasImage }
+			.getOne()
+		if (!result) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
+
+		const regionIds = result.regions.map((region) => region.regionId) // ดึง regionId ทั้งหมด
+
+		const getPosition = await this.boundaryRegionEntity
+			.createQueryBuilder()
+			.select('ST_Extent(merged.geometry)', 'extend')
+			.from((subQuery) => {
+				return subQuery
+					.select('ST_Union(br.geometry)', 'geometry')
+					.from('boundary_region', 'br')
+					.where('br.region_id IN (:...ids)', { ids: regionIds })
+			}, 'merged')
+			.getRawOne()
+
+		const bboxArray = getPosition.extend
+			.replace('BOX(', '')
+			.replace(')', '')
+			.split(',')
+			.map((coord) => coord.trim().split(' ').map(parseFloat))
+
+		const hasImage = !!result.img
+		delete result.img
+		const profile = { ...result, geometry: bboxArray, hasImage }
+		const temp: GetProfileDtoOut = profile
 		return new ResponseDto({ data: temp })
 	}
 
