@@ -25,6 +25,8 @@ import { BurntAreaController } from './burnt-area/burnt-area.controller'
 import { BurntAreaService } from './burnt-area/burnt-area.service'
 import { YieldAreaController } from './yield-area/yield-area.controller'
 import { YieldService } from './yield-area/yield-area.service'
+import { ExportController } from './export/export.controller'
+import { ExportService } from './export/export.service'
 
 const imports = [
 	ConfigModule.forRoot({ isGlobal: true }),
@@ -52,7 +54,8 @@ const imports = [
 		UMController,
 		BurntAreaController,
 		YieldAreaController,
+		ExportController,
 	],
-	providers: [RandomService, MailService, BurntAreaService, YieldService],
+	providers: [RandomService, MailService, BurntAreaService, YieldService, ExportService],
 })
 export class AppModule {}

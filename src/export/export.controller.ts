@@ -1,0 +1,100 @@
+import { Controller, Get, Res, Query, UseGuards } from '@nestjs/common'
+import { ExportService } from './export.service'
+import { ExportHotspotBurntAreaDtoIn, ExportYieldAreaDtoIn } from '@interface/dto/export/export.dto-in'
+import { validatePayload } from 'src/core/utils'
+import { mapTypeCode, yieldMapTypeCode } from '@interface/config/app.config'
+import { AuthGuard } from 'src/core/auth.guard'
+import * as fs from 'fs'
+import * as path from 'path'
+@Controller('export')
+export class ExportController {
+	constructor(private readonly exportService: ExportService) {}
+
+	@Get('hotspot-burnt-area')
+	@UseGuards(AuthGuard)
+	async getHotspotBurntArea(@Query() payload: ExportHotspotBurntAreaDtoIn, @Res() res) {
+		const arrayResponse = []
+		const mapTypeFilter = payload.mapType ? validatePayload(payload.mapType) : []
+
+		if (mapTypeFilter.includes(mapTypeCode.hotspots)) {
+			const hotspotData = await this.exportService.bufferHotspotService(payload)
+			arrayResponse.push(hotspotData)
+		}
+
+		if (mapTypeFilter.includes(mapTypeCode.burnArea)) {
+			const burnAreaData = await this.exportService.bufferBurnAreaService(payload)
+			arrayResponse.push(burnAreaData)
+		}
+
+		if (mapTypeFilter.includes(mapTypeCode.plant)) {
+			const yieldPredData = await this.exportService.bufferYieldAreaService(payload)
+			arrayResponse.push(yieldPredData)
+		}
+		if (arrayResponse.length > 0) {
+			const zipStream: any = await this.exportService.generateZip(arrayResponse)
+			const formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '_')
+			const zipname = `attachment; filename="hotspot_analyst_${formattedDate}.zip"`
+			res.set({
+				'Content-Type': 'application/zip',
+				'Content-Disposition': zipname,
+			})
+			zipStream.on('end', () => {
+				arrayResponse.forEach((file) => {
+					const folderPath = path.dirname(file)
+					fs.rm(folderPath, { recursive: true, force: true }, (err) => {
+						if (err) {
+							console.error(`Error deleting folder: ${folderPath}`, err)
+						} else {
+							console.log(`Deleted folder: ${folderPath} and all its contents`)
+						}
+					})
+				})
+			})
+
+			return zipStream.pipe(res)
+		} else {
+			return res.send({})
+		}
+	}
+
+	@Get('yield-area')
+	@UseGuards(AuthGuard)
+	async getYieldArea(@Query() payload: ExportYieldAreaDtoIn, @Res() res) {
+		const arrayResponse = []
+		const mapTypeFilter = payload.mapType ? validatePayload(payload.mapType) : []
+
+		if (mapTypeFilter.includes(yieldMapTypeCode.plant) || mapTypeFilter.includes(yieldMapTypeCode.product)) {
+			const yieldPredData = await this.exportService.bufferYieldAreaService(payload)
+			arrayResponse.push(yieldPredData)
+		}
+
+		if (mapTypeFilter.includes(yieldMapTypeCode.repeat)) {
+			const RepearAreaData = await this.exportService.bufferRepeatAreaService(payload)
+			arrayResponse.push(RepearAreaData)
+		}
+		if (arrayResponse.length > 0) {
+			const zipStream: any = await this.exportService.generateZip(arrayResponse)
+			const formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '_')
+			const zipname = `attachment; filename="plant_analyst_${formattedDate}.zip"`
+			res.set({
+				'Content-Type': 'application/zip',
+				'Content-Disposition': zipname,
+			})
+			zipStream.on('end', () => {
+				arrayResponse.forEach((file) => {
+					const folderPath = path.dirname(file)
+					fs.rm(folderPath, { recursive: true, force: true }, (err) => {
+						if (err) {
+							console.error(`Error deleting folder: ${folderPath}`, err)
+						} else {
+							console.log(`Deleted folder: ${folderPath} and all its contents`)
+						}
+					})
+				})
+			})
+			return zipStream.pipe(res)
+		} else {
+			return res.send({})
+		}
+	}
+}
