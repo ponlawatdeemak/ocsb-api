@@ -40,7 +40,7 @@ export class YieldAreaController {
 		let yieldPlant: GetPlantYieldAreaDtoOut[] = []
 		if (validateDate(payload.startDate, payload.endDate)) throw new BadRequestException(errorResponse.INVALID_DATE)
 		if (payload.admC || payload.polygon) {
-			const queryBuilderPlant = await this.sugarcaneDsYieldPredEntity
+			const queryBuilderPlant = this.sugarcaneDsYieldPredEntity
 				.createQueryBuilder('sdy')
 				.select(
 					`
@@ -104,7 +104,7 @@ export class YieldAreaController {
 		let yieldProduct: GetProductYieldAreaDtoOut[] = []
 		if (validateDate(payload.startDate, payload.endDate)) throw new BadRequestException(errorResponse.INVALID_DATE)
 		if (payload.admC || payload.polygon) {
-			const queryBuilderProduct = await this.sugarcaneDsYieldPredEntity
+			const queryBuilderProduct = this.sugarcaneDsYieldPredEntity
 				.createQueryBuilder('sdyp')
 				.select(
 					`
@@ -186,7 +186,7 @@ export class YieldAreaController {
 		let yieldReplant: GetReplantYieldAreaDtoIn[] = []
 		if (validateDate(payload.startDate, payload.endDate)) throw new BadRequestException(errorResponse.INVALID_DATE)
 		if (payload.admC || payload.polygon) {
-			const queryBuilderRePlant = await this.sugarcaneDsRepeatAreaEntity
+			const queryBuilderRePlant = this.sugarcaneDsRepeatAreaEntity
 				.createQueryBuilder('sdra')
 				.select(
 					`

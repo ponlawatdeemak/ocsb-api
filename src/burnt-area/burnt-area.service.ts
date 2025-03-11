@@ -112,7 +112,7 @@ export class BurntAreaService {
 	}
 
 	async burnAreaService(payload: GetDashBoardBurntAreaDtoIn) {
-		const queryBuilderBurnArea = await this.sugarcaneDsBurnAreaEntity
+		const queryBuilderBurnArea = this.sugarcaneDsBurnAreaEntity
 			.createQueryBuilder('sdba')
 			.select(
 				`
@@ -168,7 +168,7 @@ export class BurntAreaService {
 	}
 
 	async yieldPredService(payload: GetDashBoardBurntAreaDtoIn) {
-		const queryBuilderYieldTotal = await this.sugarcaneDsYieldPredEntity
+		const queryBuilderYieldTotal = this.sugarcaneDsYieldPredEntity
 			.createQueryBuilder('syp')
 			.select(
 				`
@@ -201,7 +201,7 @@ export class BurntAreaService {
 
 		const totalYieldPred = await queryBuilderYieldTotal.getRawOne()
 
-		const queryBuilderYieldPred = await this.sugarcaneDsYieldPredEntity
+		const queryBuilderYieldPred = this.sugarcaneDsYieldPredEntity
 			.createQueryBuilder('syp')
 			.select(
 				`

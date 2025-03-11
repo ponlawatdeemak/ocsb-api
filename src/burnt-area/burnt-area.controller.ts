@@ -51,7 +51,7 @@ export class BurntAreaController {
 		if (validateDate(payload.startDate, payload.endDate)) throw new BadRequestException(errorResponse.INVALID_DATE)
 
 		if (inSugarcaneFilter.length !== 0 && (payload.admC || payload.polygon)) {
-			const queryBuilderHotspot = await this.sugarcaneHotspotEntity
+			const queryBuilderHotspot = this.sugarcaneHotspotEntity
 				.createQueryBuilder('sh')
 				.select(
 					`
@@ -120,7 +120,7 @@ export class BurntAreaController {
 		let burnArea: GetBurntBurntAreaDtoOut[] = []
 		if (validateDate(payload.startDate, payload.endDate)) throw new BadRequestException(errorResponse.INVALID_DATE)
 		if (payload.admC || payload.polygon) {
-			const queryBuilderBurnArea = await this.sugarcaneDsBurnAreaEntity
+			const queryBuilderBurnArea = this.sugarcaneDsBurnAreaEntity
 				.createQueryBuilder('sdba')
 				.select(
 					`
@@ -196,7 +196,7 @@ export class BurntAreaController {
 		let yieldPred: GetPlantBurntAreaDtoOut[] = []
 		if (validateDate(payload.startDate, payload.endDate)) throw new BadRequestException(errorResponse.INVALID_DATE)
 		if (payload.admC || payload.polygon) {
-			const queryBuilderYieldPred = await this.sugarcaneDsYieldPredEntity
+			const queryBuilderYieldPred = this.sugarcaneDsYieldPredEntity
 				.createQueryBuilder('sdyp')
 				.select(
 					`

@@ -152,7 +152,7 @@ export class ExportService {
 	}
 
 	async bufferBurnAreaService(payload: ExportHotspotBurntAreaDtoIn) {
-		const queryBuilderBurnArea = await this.sugarcaneDsBurnAreaEntity
+		const queryBuilderBurnArea = this.sugarcaneDsBurnAreaEntity
 			.createQueryBuilder('sdba')
 			.select(
 				`jsonb_agg(jsonb_build_array(${this.convertArrayToString(columnsBurnArea, 'sdba', payload.area, payload.weight)})) AS data`,
@@ -186,7 +186,7 @@ export class ExportService {
 	}
 
 	async bufferYieldAreaService(payload: ExportHotspotBurntAreaDtoIn | ExportYieldAreaDtoIn) {
-		const queryBuilderYieldPred = await this.sugarcaneDsYieldPredEntity
+		const queryBuilderYieldPred = this.sugarcaneDsYieldPredEntity
 			.createQueryBuilder('sdyp')
 			.select(
 				`jsonb_agg(jsonb_build_array(${this.convertArrayToString(columnsYieldArea, 'sdyp', payload.area, payload.weight)})) AS data`,
@@ -224,7 +224,7 @@ export class ExportService {
 	}
 
 	async bufferRepeatAreaService(payload: ExportYieldAreaDtoIn) {
-		const queryBuilderRePlant = await this.sugarcaneDsRepeatAreaEntity
+		const queryBuilderRePlant = this.sugarcaneDsRepeatAreaEntity
 			.createQueryBuilder('sdra')
 			.select(
 				`jsonb_agg(jsonb_build_array(${this.convertArrayToString(columnsRepeatArea, 'sdra', payload.area, payload.weight)})) AS data`,
