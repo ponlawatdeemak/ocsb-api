@@ -57,8 +57,6 @@ export class YieldService {
 			queryBuilderPlantTotal.getRawOne(),
 			queryBuilderPlantResult.getRawOne(),
 		])
-		console.log('👻 queryBuilderPlantTotal: ', queryBuilderPlantTotal.getSql())
-		console.log('👻 queryBuilderPlantResult: ', queryBuilderPlantResult.getSql())
 
 		return {
 			total: totalPlant,
