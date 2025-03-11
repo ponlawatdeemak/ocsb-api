@@ -48,7 +48,7 @@ export class YieldService {
 		}
 
 		if (payload.admC) {
-			queryBuilderPlantResult.andWhere('sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc', {
+			queryBuilderPlantResult.andWhere('(sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc)', {
 				admc: payload.admC,
 			})
 		}
@@ -57,6 +57,8 @@ export class YieldService {
 			queryBuilderPlantTotal.getRawOne(),
 			queryBuilderPlantResult.getRawOne(),
 		])
+		console.log('👻 queryBuilderPlantTotal: ', queryBuilderPlantTotal.getSql())
+		console.log('👻 queryBuilderPlantResult: ', queryBuilderPlantResult.getSql())
 
 		return {
 			total: totalPlant,
@@ -127,12 +129,13 @@ export class YieldService {
 		}
 
 		if (payload.admC) {
-			queryBuilderSumCoun.andWhere('sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc', {
+			queryBuilderSumCoun.andWhere('(sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc)', {
 				admc: payload.admC,
 			})
-			queryBuilderProductResult.andWhere('sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc', {
-				admc: payload.admC,
-			})
+			queryBuilderProductResult.andWhere(
+				'(sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc)',
+				{ admc: payload.admC },
+			)
 		}
 		const [average, totalProduct, resultProduct] = await Promise.all([
 			queryBuilderSumCoun.getRawOne(),
