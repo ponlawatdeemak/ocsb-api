@@ -31,69 +31,69 @@ export class YieldAreaController {
 		private readonly yieldService: YieldService,
 	) {}
 
-	@Get('plant')
-	@UseGuards(AuthGuard)
-	async getPlant(
-		@Query() payload: GetPlantYieldAreaDtoIn,
-		@Res() res,
-	): Promise<ResponseDto<GetPlantYieldAreaDtoOut[]>> {
-		let yieldPlant: GetPlantYieldAreaDtoOut[] = []
-		if (validateDate(payload.startDate, payload.endDate)) throw new BadRequestException(errorResponse.INVALID_DATE)
-		if (payload.admC || payload.polygon) {
-			const queryBuilderPlant = this.sugarcaneDsYieldPredEntity
-				.createQueryBuilder('sdy')
-				.select(
-					`
-                jsonb_build_object(
-                'type', 'Feature',
-                'geometry', ST_AsGeoJSON(sdy.geometry)::jsonb,
-                'properties', jsonb_build_object(
-                	'date', TO_CHAR(sdy.cls_edate,'YYYY-MM-DD'),
-					'adm', jsonb_build_object( 
-							'en', sdy.o_adm3e || ' ' || sdy.o_adm2e || ' ' || sdy.o_adm1e,
-							'th', sdy.o_adm3t || ' ' || sdy.o_adm2t || ' ' || sdy.o_adm1t
-						),
-                	'area', jsonb_build_object(
-                		'm2', sdy.area_m2,
-	                	'km2', sdy.area_km2,
-	                	'rai', sdy.area_rai,
-	                	'hexa', sdy.area_hexa
-                	) 
-                )
-                ) as geojson
-                `,
-				)
-				.where('sdy.region_id IS NOT NULL')
+	// @Get('plant')
+	// @UseGuards(AuthGuard)
+	// async getPlant(
+	// 	@Query() payload: GetPlantYieldAreaDtoIn,
+	// 	@Res() res,
+	// ): Promise<ResponseDto<GetPlantYieldAreaDtoOut[]>> {
+	// 	let yieldPlant: GetPlantYieldAreaDtoOut[] = []
+	// 	if (validateDate(payload.startDate, payload.endDate)) throw new BadRequestException(errorResponse.INVALID_DATE)
+	// 	if (payload.admC || payload.polygon) {
+	// 		const queryBuilderPlant = this.sugarcaneDsYieldPredEntity
+	// 			.createQueryBuilder('sdy')
+	// 			.select(
+	// 				`
+	//             jsonb_build_object(
+	//             'type', 'Feature',
+	//             'geometry', ST_AsGeoJSON(sdy.geometry)::jsonb,
+	//             'properties', jsonb_build_object(
+	//             	'date', TO_CHAR(sdy.cls_edate,'YYYY-MM-DD'),
+	// 				'adm', jsonb_build_object(
+	// 						'en', sdy.o_adm3e || ' ' || sdy.o_adm2e || ' ' || sdy.o_adm1e,
+	// 						'th', sdy.o_adm3t || ' ' || sdy.o_adm2t || ' ' || sdy.o_adm1t
+	// 					),
+	//             	'area', jsonb_build_object(
+	//             		'm2', sdy.area_m2,
+	//                 	'km2', sdy.area_km2,
+	//                 	'rai', sdy.area_rai,
+	//                 	'hexa', sdy.area_hexa
+	//             	)
+	//             )
+	//             ) as geojson
+	//             `,
+	// 			)
+	// 			.where('sdy.region_id IS NOT NULL')
 
-			if (payload.startDate && payload.endDate) {
-				queryBuilderPlant.andWhere('sdy.cls_edate BETWEEN :startDate AND :endDate', {
-					startDate: payload.startDate,
-					endDate: payload.endDate,
-				})
-			}
-			if (payload.admC) {
-				queryBuilderPlant.andWhere('(sdy.o_adm1c = :admc or sdy.o_adm2c = :admc or sdy.o_adm3c = :admc)', {
-					admc: payload.admC,
-				})
-			} else {
-				if (payload.polygon) {
-					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-					queryBuilderPlant.andWhere('ST_Within(sdy.geometry, ST_GeomFromText(:polygon, 4326))', {
-						polygon: formatePolygon,
-					})
-				}
-			}
+	// 		if (payload.startDate && payload.endDate) {
+	// 			queryBuilderPlant.andWhere('sdy.cls_edate BETWEEN :startDate AND :endDate', {
+	// 				startDate: payload.startDate,
+	// 				endDate: payload.endDate,
+	// 			})
+	// 		}
+	// 		if (payload.admC) {
+	// 			queryBuilderPlant.andWhere('(sdy.o_adm1c = :admc or sdy.o_adm2c = :admc or sdy.o_adm3c = :admc)', {
+	// 				admc: payload.admC,
+	// 			})
+	// 		} else {
+	// 			if (payload.polygon) {
+	// 				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+	// 				queryBuilderPlant.andWhere('ST_Within(sdy.geometry, ST_GeomFromText(:polygon, 4326))', {
+	// 					polygon: formatePolygon,
+	// 				})
+	// 			}
+	// 		}
 
-			yieldPlant = await queryBuilderPlant.getRawMany().then((data) => {
-				return data.map((item) => item.geojson)
-			})
-		}
+	// 		yieldPlant = await queryBuilderPlant.getRawMany().then((data) => {
+	// 			return data.map((item) => item.geojson)
+	// 		})
+	// 	}
 
-		res.setHeader('Cache-Control', 'public, max-age=3600')
-		return res.json({
-			data: yieldPlant,
-		})
-	}
+	// 	res.setHeader('Cache-Control', 'public, max-age=3600')
+	// 	return res.json({
+	// 		data: yieldPlant,
+	// 	})
+	// }
 
 	@Get('product')
 	@UseGuards(AuthGuard)
