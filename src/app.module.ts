@@ -28,6 +28,7 @@ import { YieldAreaController } from './yield-area/yield-area.controller'
 import { YieldService } from './yield-area/yield-area.service'
 import { ExportController } from './export/export.controller'
 import { ExportService } from './export/export.service'
+import { LineService } from './core/line.service'
 
 const imports = [
 	ConfigModule.forRoot({ isGlobal: true }),
@@ -58,6 +59,6 @@ const imports = [
 		YieldAreaController,
 		ExportController,
 	],
-	providers: [RandomService, MailService, BurntAreaService, YieldService, ExportService],
+	providers: [RandomService, MailService, BurntAreaService, YieldService, ExportService, LineService],
 })
 export class AppModule {}

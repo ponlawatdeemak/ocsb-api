@@ -1,6 +1,10 @@
 import { ResponseDto } from '@interface/config/app.config'
-import { ChangePasswordProfileDtoOut, GetProfileDtoOut } from '@interface/dto/profile/profile.dto-out'
-import { Controller, Get, UseGuards, Request, Put, Body, BadRequestException } from '@nestjs/common'
+import {
+	ChangePasswordProfileDtoOut,
+	ConnectLineDtoOut,
+	GetProfileDtoOut,
+} from '@interface/dto/profile/profile.dto-out'
+import { Controller, Get, UseGuards, Request, Put, Body, BadRequestException, Post } from '@nestjs/common'
 import { AuthGuard } from 'src/core/auth.guard'
 import { UserMeta } from '@interface/auth.type'
 import * as bcrypt from 'bcryptjs'
@@ -10,7 +14,7 @@ import { Repository, EntityManager } from 'typeorm'
 import { BoundaryRegionEntity, UsersEntity } from '@interface/entities'
 import { hashPassword } from 'src/core/utils'
 import { errorResponse } from '@interface/config/error.config'
-import { ChangePasswordProfileDtoIn } from '@interface/dto/profile/profile.dto-in'
+import { ChangePasswordProfileDtoIn, ConnectLineDtoIn } from '@interface/dto/profile/profile.dto-in'
 @Controller('profile')
 export class ProfileController {
 	constructor(
@@ -95,6 +99,32 @@ export class ProfileController {
 			userRow.updatedBy = { userId: id }
 			await transactionalEntityManager.save(userRow)
 		})
+
+		return new ResponseDto({ data: { success: true } })
+	}
+
+	@Post('line-connect')
+	async connectLine(
+		@Body() payload: ConnectLineDtoIn,
+		@User() user: UserMeta,
+	): Promise<ResponseDto<ConnectLineDtoOut>> {
+		const lineUser = await this.userEntity.findOne({ where: { lineUserId: payload.lineUserId } })
+		if (lineUser) {
+			throw new BadRequestException()
+		} else {
+			const row = await this.userEntity.findOne({ where: { userId: user.id } })
+			row.lineUserId = payload.lineUserId
+			await this.userEntity.save(row)
+
+			return new ResponseDto({ data: { success: true } })
+		}
+	}
+
+	@Post('line-disconnect')
+	async disconnectLine(@User() user: UserMeta): Promise<ResponseDto<ConnectLineDtoOut>> {
+		const row = await this.userEntity.findOne({ where: { userId: user.id } })
+		row.lineUserId = null
+		await this.userEntity.save(row)
 
 		return new ResponseDto({ data: { success: true } })
 	}
