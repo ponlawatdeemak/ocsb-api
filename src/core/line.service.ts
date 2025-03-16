@@ -1,7 +1,16 @@
+import { HttpService } from '@nestjs/axios'
 import { Injectable } from '@nestjs/common'
+import { lastValueFrom } from 'rxjs'
+
+export interface LineMessageConfig {
+	title: string
+	to: string[]
+}
 
 @Injectable()
 export class LineService {
+	constructor(private readonly httpService: HttpService) {}
+
 	async send(config: LineMessageConfig): Promise<void> {
 		console.log('line msg config:', config)
 		console.log('-----')
@@ -10,74 +19,89 @@ export class LineService {
 		const lineAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN
 
 		for (const lineUserId of config.to) {
-			const flexMsgConfig = {
-				to: lineUserId,
-				messages: [
+			const msgImg = {
+				type: 'imagemap',
+				baseUrl: ``,
+				altText: 'This is an imagemap',
+				baseSize: {
+					width: 1040,
+					height: 1040,
+				},
+				actions: [
 					{
-						type: 'flex',
-						altText: 'ข้อความจากระบบ',
-						contents: {
-							type: 'bubble',
-							hero: {
-								type: 'image',
-								url: config.img,
-								size: 'full',
-								aspectRatio: '20:13',
-								aspectMode: 'cover',
-							},
-							body: {
-								type: 'box',
-								layout: 'vertical',
-								spacing: 'md',
-								contents: [
-									{
-										type: 'text',
-										text: config.title,
-										weight: 'bold',
-										size: 'xl',
-										gravity: 'center',
-										wrap: true,
-										contents: [],
-									},
-									{
-										type: 'text',
-										text: `${config.title}  สถานะ "${config.content.statusName}"  เลขใบแจ้ง ${config.content.incNo}`,
-										size: 'sm',
-										wrap: true,
-										contents: [],
-									},
-								],
-							},
-							footer: {
-								type: 'box',
-								layout: 'horizontal',
-								flex: 1,
-								contents: [
-									{
-										type: 'button',
-										action: {
-											type: 'uri',
-											label: 'ดูรายละเอียด',
-											uri: `https://liff.line.me/${
-												config.isOfficer
-													? process.env.LINE_LIFF_ID_OFFICER
-													: process.env.LINE_LIFF_ID_PEOPLE
-											}/p/incident?id=${config.content.incId}`,
-										},
-									},
-								],
-							},
+						type: 'uri',
+						area: {
+							x: 90,
+							y: 375,
+							width: 340,
+							height: 85,
 						},
+						linkUri: 'https://google.com',
+					},
+					{
+						type: 'uri',
+						area: {
+							x: 610,
+							y: 375,
+							width: 340,
+							height: 85,
+						},
+						linkUri: 'https://google.com',
+					},
+					{
+						type: 'uri',
+						area: {
+							x: 90,
+							y: 900,
+							width: 340,
+							height: 85,
+						},
+						linkUri: 'https://google.com',
+					},
+					{
+						type: 'uri',
+						area: {
+							x: 610,
+							y: 900,
+							width: 340,
+							height: 85,
+						},
+						linkUri: 'https://google.com',
 					},
 				],
 			}
+			const msgTxt = {
+				type: 'text',
+				text: `
+					🔥Burntracking Alert ! การแจ้งเตือนการเกิดจุดความร้อนในพื้นที่ปลูกอ้อย  
+					วันที่ 4 มีนาคม 2568
+					จุดความร้อนทั้งหมด 20 จุด
+					ในแปลงอ้อย 2 จุด
+					นอกแปลงอ้อย 18 จุด
+					
+					📌 ภาค 1 (สระบุรี)
+					ในแปลงอ้อย 2 จุด
+					นอกแปลงอ้อย 18 จุด
+					
+					📌 ภาค 2 (เพชรบูรณ์)
+					ในแปลงอ้อย 2 จุด
+					นอกแปลงอ้อย 18 จุด
+					
+					📌 ภาค 3 (สระแก้ว)
+					ในแปลงอ้อย 2 จุด
+					นอกแปลงอ้อย 18 จุด
+					
+					📌 ภาค 4 (ขอนแก่น)
+					ในแปลงอ้อย 2 จุด
+					นอกแปลงอ้อย 18 จุด
+				`,
+			}
+
+			const msgConfig = { to: lineUserId, messages: [msgImg, msgTxt] }
 			try {
 				await lastValueFrom(
-					this.httpService.post(url, JSON.stringify(flexMsgConfig), {
-						headers: {
-							authorization: `Bearer ${lineAccessToken}`,
-							'content-type': 'application/json',
-						},
+					this.httpService.post(url, JSON.stringify(msgConfig), {
+						headers: { authorization: `Bearer ${lineAccessToken}`, 'content-type': 'application/json' },
 					}),
 				)
 			} catch (error) {

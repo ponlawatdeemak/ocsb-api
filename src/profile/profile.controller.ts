@@ -4,7 +4,7 @@ import {
 	ConnectLineDtoOut,
 	GetProfileDtoOut,
 } from '@interface/dto/profile/profile.dto-out'
-import { Controller, Get, UseGuards, Request, Put, Body, BadRequestException, Post } from '@nestjs/common'
+import { Controller, Get, UseGuards, Request, Put, Body, BadRequestException, Post, Res } from '@nestjs/common'
 import { AuthGuard } from 'src/core/auth.guard'
 import { UserMeta } from '@interface/auth.type'
 import * as bcrypt from 'bcryptjs'
@@ -127,5 +127,15 @@ export class ProfileController {
 		await this.userEntity.save(row)
 
 		return new ResponseDto({ data: { success: true } })
+	}
+
+	@Get('/img/:size')
+	async getImage(@Request() req, @Res() res) {
+		const params = req.params
+
+		res.setHeader('Content-Type', 'image/png')
+		const imageBuffer = Buffer.from(existingUser.img, 'base64')
+		res.setHeader('Cache-Control', 'public, max-age=3600')
+		return res.send(imageBuffer)
 	}
 }

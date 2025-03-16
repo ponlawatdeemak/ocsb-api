@@ -29,6 +29,7 @@ import { YieldService } from './yield-area/yield-area.service'
 import { ExportController } from './export/export.controller'
 import { ExportService } from './export/export.service'
 import { LineService } from './core/line.service'
+import { HttpModule } from '@nestjs/axios'
 
 const imports = [
 	ConfigModule.forRoot({ isGlobal: true }),
@@ -47,6 +48,7 @@ const imports = [
 		BoundaryRegionEntity,
 	]),
 	AuthModule,
+	HttpModule,
 ]
 @Module({
 	imports: imports,
