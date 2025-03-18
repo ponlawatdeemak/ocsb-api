@@ -31,6 +31,7 @@ import { ExportService } from './export/export.service'
 import { LineService } from './core/line.service'
 import { HttpModule } from '@nestjs/axios'
 import { ScheduleModule } from '@nestjs/schedule'
+import { AppController } from './app.controller'
 
 const imports = [
 	ConfigModule.forRoot({ isGlobal: true }),
@@ -62,6 +63,7 @@ const imports = [
 		BurntAreaController,
 		YieldAreaController,
 		ExportController,
+		AppController,
 	],
 	providers: [RandomService, MailService, BurntAreaService, YieldService, ExportService, LineService],
 })
