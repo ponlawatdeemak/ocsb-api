@@ -30,6 +30,7 @@ import { ExportController } from './export/export.controller'
 import { ExportService } from './export/export.service'
 import { LineService } from './core/line.service'
 import { HttpModule } from '@nestjs/axios'
+import { ScheduleModule } from '@nestjs/schedule'
 
 const imports = [
 	ConfigModule.forRoot({ isGlobal: true }),
@@ -49,6 +50,7 @@ const imports = [
 	]),
 	AuthModule,
 	HttpModule,
+	ScheduleModule.forRoot(),
 ]
 @Module({
 	imports: imports,
