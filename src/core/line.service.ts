@@ -93,7 +93,7 @@ export class LineService {
 		const msgImg = {
 			type: 'imagemap',
 			baseUrl: `${process.env.APP_BE_URL}/profile/line/img`,
-			altText: 'This is an imagemap',
+			altText: '🔥Burntracking Alert !',
 			baseSize: { width: 1040, height: 1040 },
 			actions: [
 				{
