@@ -30,8 +30,9 @@ export class LineService {
 	}
 	private readonly logger = new Logger(LineService.name)
 
+	// @Cron('*/10 * * * *', { 		// every 10 min.
+	// @Cron('*/10 * * * * *', {	// every 10 sec.
 	@Cron(CronExpression.EVERY_DAY_AT_8AM, {
-		// @Cron('*/10 * * * *', {
 		name: 'task_08_am',
 		timeZone: 'Asia/Bangkok',
 	})
@@ -68,9 +69,9 @@ export class LineService {
 			total.inSugarcane += matchItem?.inSugarcane || 0
 			total.outSugarcane += matchItem?.outSugarcane || 0
 			return `
-				📌 ภาค ${item.regionId} (${provList.join()})
-				ในแปลงอ้อย ${matchItem?.inSugarcane || 0} จุด
-				นอกแปลงอ้อย ${matchItem?.outSugarcane || 0} จุด`
+📌 ภาค ${item.regionId} (${provList.join()})
+ในแปลงอ้อย ${matchItem?.inSugarcane || 0} จุด
+นอกแปลงอ้อย ${matchItem?.outSugarcane || 0} จุด`
 		})
 
 		const msg = `🔥Burntracking Alert ! การแจ้งเตือนการเกิดจุดความร้อนในพื้นที่ปลูกอ้อย
