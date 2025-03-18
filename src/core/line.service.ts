@@ -30,8 +30,8 @@ export class LineService {
 	}
 	private readonly logger = new Logger(LineService.name)
 
-	// @Cron(CronExpression.EVERY_DAY_AT_8AM, {
-	@Cron('*/10 * * * * ', {
+	@Cron(CronExpression.EVERY_DAY_AT_8AM, {
+		// @Cron('*/10 * * * * ', {
 		name: 'task_08_am',
 		timeZone: 'Asia/Bangkok',
 	})
