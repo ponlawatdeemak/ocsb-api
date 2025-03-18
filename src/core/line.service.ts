@@ -31,7 +31,7 @@ export class LineService {
 	private readonly logger = new Logger(LineService.name)
 
 	@Cron(CronExpression.EVERY_DAY_AT_8AM, {
-		// @Cron('*/10 * * * * ', {
+		// @Cron('*/10 * * * *', {
 		name: 'task_08_am',
 		timeZone: 'Asia/Bangkok',
 	})
@@ -89,7 +89,7 @@ export class LineService {
 		// const url = 'https://api.line.me/v2/bot/message/push'
 		const url = 'https://api.line.me/v2/bot/message/broadcast'
 		const lineAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN
-		const linkUrl = `${process.env.APP_FE_URL}/auth/login?app_callback=${process.env.APP_BE_URL}/export/hotspot-region`
+		const linkUrl = `${process.env.APP_FE_URL}/line-export?app_callback=${process.env.APP_BE_URL}/export/hotspot-region`
 		const msgImg = {
 			type: 'imagemap',
 			baseUrl: `${process.env.APP_BE_URL}/profile/line/img`,
