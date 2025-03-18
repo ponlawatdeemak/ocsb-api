@@ -10,9 +10,13 @@ import {
 } from '@interface/entities'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { ExportHotspotBurntAreaDtoIn, ExportYieldAreaDtoIn } from '@interface/dto/export/export.dto-in'
+import {
+	ExportHotspotBurntAreaDtoIn,
+	ExportHotspotRegionDtoIn,
+	ExportYieldAreaDtoIn,
+} from '@interface/dto/export/export.dto-in'
 import { convertPolygonToWKT, getRound, validatePayload } from 'src/core/utils'
-import { hotspotTypeCode } from '@interface/config/app.config'
+import { areaType, hotspotTypeCode, weightType } from '@interface/config/app.config'
 import {
 	columnsBurnArea,
 	columnsHotspot,
@@ -22,6 +26,7 @@ import {
 } from '@interface/config/report.config'
 import * as fs from 'fs'
 import * as path from 'path'
+import * as moment from 'moment-timezone'
 
 @Injectable()
 export class ExportService {
@@ -39,8 +44,8 @@ export class ExportService {
 		private readonly sugarcaneDsRepeatAreaEntity: Repository<SugarcaneDsRepeatAreaEntity>,
 	) {}
 
-	async generateCsv(columns: string[], rows: any[][], fileName: string) {
-		const exportDir = path.join(__dirname, 'export', 'temp')
+	async generateCsv(columns: string[], rows: any[][], fileName: string, pathname?: string) {
+		const exportDir = path.join(__dirname, 'export', pathname || 'temp')
 		const uniqueFolder = `csv_${Date.now()}`
 		const folderPath = path.join(exportDir, uniqueFolder)
 		const filePath = path.join(folderPath, `${fileName}.csv`)
@@ -261,5 +266,40 @@ export class ExportService {
 		const reCheckColumns = await this.validateColumnsInCSV(columnsRepeatArea, payload.area, payload.weight)
 		const bufferRepeatArea = await this.generateCsv(reCheckColumns, repeatArea, reportName.plantRepeat)
 		return bufferRepeatArea
+	}
+
+	async bufferHotspotRegion(payload: ExportHotspotRegionDtoIn) {
+		const queryBuilderHotspot = this.sugarcaneHotspotEntity
+			.createQueryBuilder('sh')
+			.select(
+				`jsonb_agg(jsonb_build_array(${this.convertArrayToString(columnsHotspot, 'sh', areaType.km2, weightType.tom)})) AS data`,
+			)
+			.where('sh.region_id =:regionId', { regionId: payload.regionId })
+		const round = Number(payload.round)
+		const date = moment().utcOffset(0, true).startOf('date').toDate()
+		let dateStart = moment(date)
+		let dateEnd = moment(date)
+		if (round === 1) {
+			dateStart = moment(date).subtract(7, 'hours')
+			dateEnd = moment(date).add(7, 'hours')
+		} else if (round === 2) {
+			dateStart = moment(date).add(7, 'hours')
+			dateEnd = moment(date).add(17, 'hours')
+		}
+
+		queryBuilderHotspot.andWhere('sh.acq_date > :startDate ', {
+			startDate: dateStart,
+		})
+		queryBuilderHotspot.andWhere('sh.acq_date <= :endDate', {
+			endDate: dateEnd,
+		})
+
+		const hotspot = await queryBuilderHotspot.getRawOne().then((item) => {
+			return item.data || []
+		})
+
+		const reCheckColumns = await this.validateColumnsInCSV(columnsHotspot, areaType.km2, weightType.tom)
+		const path = await this.generateCsv(reCheckColumns, hotspot, reportName.hotspont, 'line')
+		return path
 	}
 }

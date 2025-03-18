@@ -1,6 +1,10 @@
-import { Controller, Get, Res, Query, UseGuards } from '@nestjs/common'
+import { Controller, Get, Res, Query, UseGuards, Req } from '@nestjs/common'
 import { ExportService } from './export.service'
-import { ExportHotspotBurntAreaDtoIn, ExportYieldAreaDtoIn } from '@interface/dto/export/export.dto-in'
+import {
+	ExportHotspotBurntAreaDtoIn,
+	ExportHotspotRegionDtoIn,
+	ExportYieldAreaDtoIn,
+} from '@interface/dto/export/export.dto-in'
 import { validatePayload } from 'src/core/utils'
 import { mapTypeCode, yieldMapTypeCode } from '@interface/config/app.config'
 import { AuthGuard } from 'src/core/auth.guard'
@@ -44,8 +48,6 @@ export class ExportController {
 					fs.rm(folderPath, { recursive: true, force: true }, (err) => {
 						if (err) {
 							console.error(`Error deleting folder: ${folderPath}`, err)
-						} else {
-							console.log(`Deleted folder: ${folderPath} and all its contents`)
 						}
 					})
 				})
@@ -55,6 +57,27 @@ export class ExportController {
 		} else {
 			return res.send({})
 		}
+	}
+
+	@Get('hotspot-region/:regionId/:round')
+	@UseGuards(AuthGuard)
+	async getHotspotRegion(@Req() req, @Res() res) {
+		const payload: ExportHotspotRegionDtoIn = req.params
+
+		const filepath = await this.exportService.bufferHotspotRegion(payload)
+		const formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '_')
+		res.setHeader('Content-Type', 'text/csv')
+		res.setHeader('Content-Disposition', `attachment; filename="hotspot_region_${formattedDate}.csv"`)
+
+		const fileStream = fs.createReadStream(filepath)
+		fileStream.pipe(res)
+
+		const folderPath = path.dirname(filepath)
+		fs.rm(folderPath, { recursive: true, force: true }, (err) => {
+			if (err) {
+				console.error(`Error deleting folder: ${folderPath}`, err)
+			}
+		})
 	}
 
 	@Get('yield-area')
@@ -86,8 +109,6 @@ export class ExportController {
 					fs.rm(folderPath, { recursive: true, force: true }, (err) => {
 						if (err) {
 							console.error(`Error deleting folder: ${folderPath}`, err)
-						} else {
-							console.log(`Deleted folder: ${folderPath} and all its contents`)
 						}
 					})
 				})

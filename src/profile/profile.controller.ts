@@ -1,6 +1,10 @@
 import { ResponseDto } from '@interface/config/app.config'
-import { ChangePasswordProfileDtoOut, GetProfileDtoOut } from '@interface/dto/profile/profile.dto-out'
-import { Controller, Get, UseGuards, Request, Put, Body, BadRequestException } from '@nestjs/common'
+import {
+	ChangePasswordProfileDtoOut,
+	// ConnectLineDtoOut,
+	GetProfileDtoOut,
+} from '@interface/dto/profile/profile.dto-out'
+import { Controller, Get, UseGuards, Request, Put, Body, BadRequestException, Post, Res } from '@nestjs/common'
 import { AuthGuard } from 'src/core/auth.guard'
 import { UserMeta } from '@interface/auth.type'
 import * as bcrypt from 'bcryptjs'
@@ -10,7 +14,12 @@ import { Repository, EntityManager } from 'typeorm'
 import { BoundaryRegionEntity, UsersEntity } from '@interface/entities'
 import { hashPassword } from 'src/core/utils'
 import { errorResponse } from '@interface/config/error.config'
-import { ChangePasswordProfileDtoIn } from '@interface/dto/profile/profile.dto-in'
+import {
+	ChangePasswordProfileDtoIn,
+	// , ConnectLineDtoIn
+} from '@interface/dto/profile/profile.dto-in'
+import * as path from 'path'
+import * as fs from 'fs'
 @Controller('profile')
 export class ProfileController {
 	constructor(
@@ -97,5 +106,41 @@ export class ProfileController {
 		})
 
 		return new ResponseDto({ data: { success: true } })
+	}
+
+	// @Post('line/connect')
+	// async connectLine(
+	// 	@Body() payload: ConnectLineDtoIn,
+	// 	@User() user: UserMeta,
+	// ): Promise<ResponseDto<ConnectLineDtoOut>> {
+	// 	const lineUser = await this.userEntity.findOne({ where: { lineUserId: payload.lineUserId } })
+	// 	if (lineUser) {
+	// 		throw new BadRequestException()
+	// 	} else {
+	// 		const row = await this.userEntity.findOne({ where: { userId: user.id } })
+	// 		row.lineUserId = payload.lineUserId
+	// 		await this.userEntity.save(row)
+
+	// 		return new ResponseDto({ data: { success: true } })
+	// 	}
+	// }
+
+	// @Post('line/disconnect')
+	// async disconnectLine(@User() user: UserMeta): Promise<ResponseDto<ConnectLineDtoOut>> {
+	// 	const row = await this.userEntity.findOne({ where: { userId: user.id } })
+	// 	row.lineUserId = null
+	// 	await this.userEntity.save(row)
+
+	// 	return new ResponseDto({ data: { success: true } })
+	// }
+
+	@Get('line/img/:size')
+	async getImage(@Request() req, @Res() res) {
+		const size = req.params.size
+		const imagePath = path.join(__dirname, `../../views/line/img_${size}.jpg`)
+		const fileStream = fs.createReadStream(imagePath)
+		res.setHeader('Content-Type', 'image/jpeg')
+		res.setHeader('Cache-Control', 'public, max-age=3600')
+		fileStream.pipe(res)
 	}
 }
