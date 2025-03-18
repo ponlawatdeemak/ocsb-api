@@ -65,9 +65,12 @@ export class ExportController {
 		const payload: ExportHotspotRegionDtoIn = req.params
 
 		const filepath = await this.exportService.bufferHotspotRegion(payload)
-		const formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '_')
+		const formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '')
 		res.setHeader('Content-Type', 'text/csv')
-		res.setHeader('Content-Disposition', `attachment; filename="hotspot_region_${formattedDate}.csv"`)
+		res.setHeader(
+			'Content-Disposition',
+			`attachment; filename="hotspot_region${payload.regionId}_round${payload.round}_${formattedDate}.csv"`,
+		)
 
 		const fileStream = fs.createReadStream(filepath)
 		fileStream.pipe(res)
