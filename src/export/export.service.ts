@@ -3,7 +3,7 @@ import * as ExcelJS from 'exceljs'
 import * as yazl from 'yazl'
 import { PassThrough } from 'stream'
 import {
-	SugarcaneDsBurnAreaEntity,
+	SugarcaneDsBurnAreaDailyEntity,
 	SugarcaneDsRepeatAreaEntity,
 	SugarcaneDsYieldPredEntity,
 	SugarcaneHotspotEntity,
@@ -34,8 +34,8 @@ export class ExportService {
 		@InjectRepository(SugarcaneHotspotEntity)
 		private readonly sugarcaneHotspotEntity: Repository<SugarcaneHotspotEntity>,
 
-		@InjectRepository(SugarcaneDsBurnAreaEntity)
-		private readonly sugarcaneDsBurnAreaEntity: Repository<SugarcaneDsBurnAreaEntity>,
+		@InjectRepository(SugarcaneDsBurnAreaDailyEntity)
+		private readonly sugarcaneDsBurnAreaEntity: Repository<SugarcaneDsBurnAreaDailyEntity>,
 
 		@InjectRepository(SugarcaneDsYieldPredEntity)
 		private readonly sugarcaneDsYieldPredEntity: Repository<SugarcaneDsYieldPredEntity>,

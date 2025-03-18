@@ -12,7 +12,7 @@ import {
 	GetBurnAreaCalendarDtoOut,
 	GetPlantBurntAreaDtoOut,
 } from '@interface/dto/brunt-area/brunt-area.dto.out'
-import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
+import { SugarcaneDsBurnAreaDailyEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
 import { Controller, Get, Query, UseGuards, Res, BadRequestException } from '@nestjs/common'
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm'
 import { AuthGuard } from 'src/core/auth.guard'
@@ -30,8 +30,8 @@ export class BurntAreaController {
 		@InjectRepository(SugarcaneHotspotEntity)
 		private readonly sugarcaneHotspotEntity: Repository<SugarcaneHotspotEntity>,
 
-		@InjectRepository(SugarcaneDsBurnAreaEntity)
-		private readonly sugarcaneDsBurnAreaEntity: Repository<SugarcaneDsBurnAreaEntity>,
+		@InjectRepository(SugarcaneDsBurnAreaDailyEntity)
+		private readonly sugarcaneDsBurnAreaEntity: Repository<SugarcaneDsBurnAreaDailyEntity>,
 
 		@InjectRepository(SugarcaneDsYieldPredEntity)
 		private readonly sugarcaneDsYieldPredEntity: Repository<SugarcaneDsYieldPredEntity>,
@@ -313,7 +313,7 @@ export class BurntAreaController {
 			SELECT 
 				TO_CHAR(sdba.detected_d , 'YYYY-MM-DD') AS detected_d
 			FROM 
-				sugarcane.sugarcane.sugarcane_ds_burn_area sdba 
+				sugarcane.sugarcane.sugarcane_ds_burn_area_daily sdba 
 			GROUP BY 
 				TO_CHAR(sdba.detected_d, 'YYYY-MM-DD')
 			ORDER BY 

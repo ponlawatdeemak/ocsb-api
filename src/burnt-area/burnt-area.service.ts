@@ -1,6 +1,6 @@
 import { hotspotType, hotspotTypeCode } from '@interface/config/app.config'
 import { GetDashBoardBurntAreaDtoIn } from '@interface/dto/brunt-area/brunt-area.dto-in'
-import { SugarcaneDsBurnAreaEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
+import { SugarcaneDsBurnAreaDailyEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { generateMonthsFromRange, getRound, getStartAndEndOfMonth, sumby, validatePayload } from 'src/core/utils'
@@ -12,8 +12,8 @@ export class BurntAreaService {
 		@InjectRepository(SugarcaneHotspotEntity)
 		private readonly sugarcaneHotspotEntity: Repository<SugarcaneHotspotEntity>,
 
-		@InjectRepository(SugarcaneDsBurnAreaEntity)
-		private readonly sugarcaneDsBurnAreaEntity: Repository<SugarcaneDsBurnAreaEntity>,
+		@InjectRepository(SugarcaneDsBurnAreaDailyEntity)
+		private readonly sugarcaneDsBurnAreaEntity: Repository<SugarcaneDsBurnAreaDailyEntity>,
 
 		@InjectRepository(SugarcaneDsYieldPredEntity)
 		private readonly sugarcaneDsYieldPredEntity: Repository<SugarcaneDsYieldPredEntity>,
