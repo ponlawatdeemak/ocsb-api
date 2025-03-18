@@ -10,11 +10,11 @@ export interface Response<T> {
 export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> {
 	intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
 		return next.handle().pipe(
-			map((data) => {
-				if (data) {
-					return { total: data.total, data: data.data, type: data.type, features: data.features }
+			map((res) => {
+				if (res?.data) {
+					return { total: res.total, data: res.data, type: res.type, features: res.features }
 				} else {
-					return data
+					return res
 				}
 			}),
 		)
