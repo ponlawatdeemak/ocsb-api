@@ -98,6 +98,43 @@ export function generateMonthsFromRange(startDate: string, endDate: string): str
 	return result
 }
 
+export function getBurntMonthYearList(startDateStr: string, endDateStr: string, allowedMonths): string[] {
+	const startDate = new Date(startDateStr)
+	const endDate = new Date(endDateStr)
+
+	if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+		console.error("Invalid date format. Please use 'YYYY-MM-DD'.")
+		return []
+	}
+
+	if (startDate > endDate) {
+		console.error('Start date must be before end date.')
+		return []
+	}
+
+	const result = []
+	let currentDate = new Date(startDate)
+
+	while (currentDate <= endDate) {
+		const month = currentDate.getMonth() + 1 // getMonth() returns 0-11
+		const year = currentDate.getFullYear()
+
+		if (allowedMonths.includes(month)) {
+			const monthStr = month.toString().padStart(2, '0')
+			result.push(`${year}-${monthStr}-01`)
+		}
+
+		// Move to the first day of the next month
+		if (month === 12) {
+			currentDate = new Date(year + 1, 0, 1) // January of next year
+		} else {
+			currentDate = new Date(year, month, 1) // First of next month
+		}
+	}
+
+	return result
+}
+
 export function getStartAndEndOfMonth(dateString: string): { startDate: Date; endDate: Date } {
 	const date = new Date(dateString)
 

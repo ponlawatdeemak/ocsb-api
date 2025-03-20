@@ -3,7 +3,14 @@ import { GetDashBoardBurntAreaDtoIn } from '@interface/dto/brunt-area/brunt-area
 import { SugarcaneDsBurnAreaDailyEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { generateMonthsFromRange, getRound, getStartAndEndOfMonth, sumby, validatePayload } from 'src/core/utils'
+import {
+	generateMonthsFromRange,
+	getBurntMonthYearList,
+	getRound,
+	getStartAndEndOfMonth,
+	sumby,
+	validatePayload,
+} from 'src/core/utils'
 import { Repository, Brackets } from 'typeorm'
 
 @Injectable()
@@ -134,7 +141,9 @@ export class BurntAreaService {
 					}
 				}),
 			)
+			.orderBy('detected_d')
 
+		// const payloadMonth = []
 		if (payload.startDate && payload.endDate) {
 			queryBuilderBurnArea.andWhere('DATE(sdba.detected_d) BETWEEN :startDate AND :endDate', {
 				startDate: payload.startDate,
@@ -143,28 +152,57 @@ export class BurntAreaService {
 		}
 
 		const burnArea = await queryBuilderBurnArea.getRawMany()
-		const today = new Date().toISOString().split('T')[0]
-		const month = generateMonthsFromRange(payload.startDate || today, payload.endDate || today)
-		const calcBurnArea = month.map((item) => {
-			const findData = burnArea.filter((e) => {
-				const { startDate, endDate } = getStartAndEndOfMonth(item)
-				const dateRaw = new Date(e.detected_d)
-				return dateRaw >= startDate && dateRaw <= endDate
+		const allowedMonths = [10, 11, 12, 1, 2, 3, 4, 5] // พื้นที่เผาไหม้มีข้อมูลแค่เดือน ตุลาคม - พฤษภาคม
+		const burntMonth = getBurntMonthYearList(payload.startDate, payload.endDate, allowedMonths)
+		const calcBurnArea = burntMonth.map((itemMonth) => {
+			const filterData = burnArea.filter((item) => {
+				const dateData = new Date(item.detected_d)
+				const monthData = dateData.getMonth() + 1
+				const dateMonth = new Date(itemMonth)
+				const monthTemp = dateMonth.getMonth() + 1
+				return monthData === monthTemp
 			})
+
 			return {
-				date: item,
+				date: itemMonth,
 				area: {
-					m2: sumby(findData, 'area_m2'),
-					km2: sumby(findData, 'area_km2'),
-					rai: sumby(findData, 'area_rai'),
-					hexa: sumby(findData, 'area_hexa'),
+					m2: sumby(filterData, 'area_m2'),
+					km2: sumby(filterData, 'area_km2'),
+					rai: sumby(filterData, 'area_rai'),
+					hexa: sumby(filterData, 'area_hexa'),
 				},
 			}
 		})
+		const tempStart = []
+		const tempEnd = []
+		// if (calcBurnArea.length < allowedMonths.length) {
+		// 	const startDate = new Date(calcBurnArea[0].date)
+		// 	const startMonth = startDate.getMonth() + 1
+		// 	const startYear = startMonth >= 10 ? startDate.getFullYear() - 1 : startDate.getFullYear()
+		// 	const endDate = new Date(calcBurnArea[calcBurnArea.length - 1].date)
+		// 	const endMonth = endDate.getMonth() + 1
+		// 	const endYear = endDate.getFullYear()
+		// 	const startIdx = allowedMonths.findIndex((item) => item === startMonth)
+		// 	const endIdx = allowedMonths.findIndex((item) => item === endMonth)
 
-		return {
-			list: calcBurnArea,
-		}
+		// 	allowedMonths.forEach((month, idx) => {
+		// 		if (idx < startIdx) {
+		// 			tempStart.push({
+		// 				date: `${startYear}-${month}-01`,
+		// 				area: { m2: 0, km2: 0, rai: 0, hexa: 0 },
+		// 			})
+		// 		}
+		// 		if (idx > endIdx) {
+		// 			tempEnd.push({
+		// 				date: `${endYear}-${month}-01`,
+		// 				area: { m2: 0, km2: 0, rai: 0, hexa: 0 },
+		// 			})
+		// 		}
+		// 	})
+		// }
+		const list = [...tempStart, ...calcBurnArea, ...tempEnd]
+
+		return { list }
 	}
 
 	async yieldPredService(payload: GetDashBoardBurntAreaDtoIn) {
