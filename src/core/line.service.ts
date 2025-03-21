@@ -49,6 +49,9 @@ export class LineService {
 	}
 
 	private async sendDailyData(round: 1 | 2): Promise<void> {
+		if (process.env.LINE_ENABLE === 'false') {
+			return
+		}
 		const currentDate = moment().utcOffset(0, true).startOf('date').toDate()
 		const notiData = await this.getNotiData(currentDate, round)
 		const regionList = await this.repoRegion.find({
