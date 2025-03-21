@@ -152,10 +152,9 @@ export class AuthController {
 		if (!user) throw new BadRequestException(errorResponse.USER_NOT_FOUND)
 
 		const RESET_PASSWORD_TIMEOUT = this.config.get<number>('RESET_PASSWORD_TIMEOUT')
-		const RESET_PASSWORD_FRONTEND_URL = this.config.get<number>('RESET_PASSWORD_FRONTEND_URL')
 
 		const resetToken = generateTokenHex(16)
-		const resetLink = `${RESET_PASSWORD_FRONTEND_URL}?token=${resetToken}`
+		const resetLink = `${this.config.get<number>('APP_FE_URL')}/auth/reset-password?token=${resetToken}`
 
 		const now = new Date()
 

@@ -12,7 +12,7 @@ export class MailService {
 	) {}
 
 	async sendUserAccountCreated(userEmail: string, name: string, password: string) {
-		const loginUrl = this.configService.get<string>('FRONTEND_LOGIN_URL')
+		const loginUrl = `${this.configService.get<string>('APP_FE_URL')}/auth/login`
 		const html = pug.renderFile(path.join(__dirname, '../../views/userCreatedEmail.pug'), {
 			name,
 			username: userEmail,

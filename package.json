@@ -7,7 +7,6 @@
 	"license": "UNLICENSED",
 	"scripts": {
 		"dev": "nest start --watch",
-		"ssh": "node -r dotenv/config -e \"require('child_process').execSync('ssh -N -L ' + process.env.DATABASE_PORT + ':' + process.env.DATABASE_HOST + ':' + process.env.DATABASE_DEFAULT_PORT + ' ' + process.env.DATABASE_SSH_USER + '@' + process.env.DATABASE_SSH_HOST + ' -p ' + process.env.DATABASE_SSH_PORT)\"",
 		"prebuild": "rimraf dist",
 		"build": "nest build",
 		"format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
