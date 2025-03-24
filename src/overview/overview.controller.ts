@@ -1,11 +1,12 @@
 import { ResponseDto } from '@interface/config/app.config'
-import { Controller, Get, Query, BadRequestException } from '@nestjs/common'
+import { Controller, Get, Query, BadRequestException, UseGuards, Req } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Repository, Between } from 'typeorm'
 import {
 	GetBurntOverviewDtoIn,
 	GetHeatPointsOverviewDtoIn,
 	GetHeatPointsSugarcaneOverviewDtoIn,
+	GetOverviewUsageDtoIn,
 	GetPlantOverviewDtoIn,
 	GetProductOverviewDtoIn,
 	GetProductPredictOverviewDtoIn,
@@ -15,15 +16,21 @@ import {
 	GetBurntOverviewDtoOut,
 	GetHeatPointsOverviewDtoOut,
 	GetHeatPointsSugarcaneOverviewDtoOut,
+	GetOverviewUsageDtoOut,
 	GetPlantOverviewDtoOut,
 	GetProductOverviewDtoOut,
 	GetProductPredictOverviewDtoOut,
 	GetReplantOverviewDtoOut,
 	GetSummaryOverviewDtoOut,
 } from '@interface/dto/overview/overview.dto-out'
-import { YearProductionEntity } from '@interface/entities'
+import { DailyUsersEntity, UsersEntity, YearProductionEntity } from '@interface/entities'
 import { SugarcaneHotspotEntity } from '@interface/entities/sugarcane-hotspot.entity'
 import { errorResponse } from '@interface/config/error.config'
+import * as moment from 'moment-timezone'
+
+import { UserJwtPayload } from '@interface/auth.type'
+import * as jwt from 'jsonwebtoken'
+
 @Controller('overview')
 export class OverviewController {
 	constructor(
@@ -35,6 +42,12 @@ export class OverviewController {
 
 		@InjectRepository(SugarcaneHotspotEntity)
 		private readonly sugarcaneHotspotEntity: Repository<SugarcaneHotspotEntity>,
+
+		@InjectRepository(DailyUsersEntity)
+		private readonly repoDaily: Repository<DailyUsersEntity>,
+
+		@InjectRepository(UsersEntity)
+		private readonly userEntity: Repository<UsersEntity>,
 	) {}
 
 	@Get('summary')
@@ -586,5 +599,53 @@ export class OverviewController {
 		}
 
 		return new ResponseDto<GetReplantOverviewDtoOut[]>({ data })
+	}
+
+	@Get('usage')
+	async getUsage(@Req() req, @Query() payload: GetOverviewUsageDtoIn): Promise<ResponseDto<GetOverviewUsageDtoOut>> {
+		const currentDate = moment().utcOffset(0, true).startOf('date').toISOString()
+		let count = 0
+		const update = String(payload.update || '')
+		let currentRow = await this.repoDaily.findOne({ where: { loginDate: currentDate } })
+		if (update === 'true') {
+			//#region find user login info
+			const token = req.headers.authorization?.split('Bearer ')[1] || req.query.accessToken
+			let user
+			if (token) {
+				let tokenData: any
+				try {
+					tokenData = jwt.verify(token, process.env.JWT_SECRET) as UserJwtPayload
+				} catch (error) {
+					console.error('error jwt verify in overview usage: ', error)
+					tokenData = null
+				}
+				user = await this.userEntity.findOne({
+					where: { userId: tokenData.id, isDeleted: false },
+					relations: ['role'],
+					select: ['userId', 'isActive'],
+				})
+			}
+			//#endregion
+			const isLogin = !!user?.userId
+			const updateCol = isLogin ? 'loggedInUsers' : 'notLoggedInUsers'
+			const incrementNumber = 1
+
+			if (currentRow) {
+				await this.repoDaily.increment({ loginDate: currentDate }, updateCol, incrementNumber)
+				currentRow[updateCol]++
+			} else {
+				currentRow = {
+					loginDate: currentDate,
+					loggedInUsers: isLogin ? 1 : 0,
+					notLoggedInUsers: !isLogin ? 1 : 0,
+				}
+				await this.repoDaily.insert(currentRow)
+			}
+		}
+		count = (currentRow.loggedInUsers || 0) + (currentRow.notLoggedInUsers || 0)
+
+		return new ResponseDto<GetOverviewUsageDtoOut>({
+			data: { count },
+		})
 	}
 }
