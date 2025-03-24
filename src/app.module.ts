@@ -8,6 +8,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { TypeOrmConfigService } from '@libs/typeorm'
 import {
 	BoundaryRegionEntity,
+	DailyUsersEntity,
 	PositionEntity,
 	ProvincesEntity,
 	RegionsEntity,
@@ -48,6 +49,7 @@ const imports = [
 		SugarcaneDsYieldPredEntity,
 		SugarcaneDsRepeatAreaEntity,
 		BoundaryRegionEntity,
+		DailyUsersEntity,
 	]),
 	AuthModule,
 	HttpModule,
