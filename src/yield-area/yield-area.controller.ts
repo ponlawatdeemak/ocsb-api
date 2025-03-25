@@ -15,7 +15,7 @@ import { SugarcaneDsRepeatAreaEntity, SugarcaneDsYieldPredEntity } from '@interf
 import { Controller, Get, Query, Res, BadRequestException, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { AuthGuard } from 'src/core/auth.guard'
-import { convertPolygonToWKT, validateDate, validatePayload } from 'src/core/utils'
+import { convertPolygonToWKT, getRound, validateDate, validatePayload } from 'src/core/utils'
 import { Repository } from 'typeorm'
 import { YieldService } from './yield-area.service'
 
@@ -147,23 +147,29 @@ export class YieldAreaController {
 				)
 				.where('sdyp.region_id IS NOT NULL')
 
-			if (payload.startDate && payload.endDate) {
-				queryBuilderProduct.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
-					startDate: payload.startDate,
-					endDate: payload.endDate,
+			// เอา endDate ไปหาว่าข้อมูลตกในรอบไหนแล้วเอามาแสดง
+			if (payload.endDate) {
+				const dataSplit = payload.endDate.split('-')
+				const month = Number(dataSplit[1])
+				const year = Number(dataSplit[0])
+				const round = getRound(month, year)
+				queryBuilderProduct.andWhere({ clsRound: round.round })
+				queryBuilderProduct.andWhere('sdyp.cls_sdate >= :startDate AND sdyp.cls_edate <= :endDate', {
+					startDate: round.sDate,
+					endDate: round.eDate,
 				})
 			}
+
 			if (payload.admC) {
 				queryBuilderProduct.andWhere('(sdyp.o_adm1c = :admc or sdyp.o_adm2c = :admc or sdyp.o_adm3c = :admc)', {
 					admc: payload.admC,
 				})
-			} else {
-				if (payload.polygon) {
-					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-					queryBuilderProduct.andWhere('ST_Within(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
-						polygon: formatePolygon,
-					})
-				}
+			}
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderProduct.andWhere('ST_Within(sdyp.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
+				})
 			}
 
 			yieldProduct = await queryBuilderProduct.getRawMany().then((data) => {
@@ -227,13 +233,12 @@ export class YieldAreaController {
 				queryBuilderRePlant.andWhere('(sdra.o_adm1c = :admc or sdra.o_adm2c = :admc or sdra.o_adm3c = :admc)', {
 					admc: payload.admC,
 				})
-			} else {
-				if (payload.polygon) {
-					const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-					queryBuilderRePlant.andWhere('ST_Within(sdra.geometry, ST_GeomFromText(:polygon, 4326))', {
-						polygon: formatePolygon,
-					})
-				}
+			}
+			if (payload.polygon) {
+				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+				queryBuilderRePlant.andWhere('ST_Within(sdra.geometry, ST_GeomFromText(:polygon, 4326))', {
+					polygon: formatePolygon,
+				})
 			}
 
 			yieldReplant = await queryBuilderRePlant.getRawMany().then((data) => {
