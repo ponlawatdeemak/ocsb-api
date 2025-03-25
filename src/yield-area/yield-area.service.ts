@@ -2,6 +2,7 @@ import { GetDashboardYieldAreaDtoIn } from '@interface/dto/yield-area/yield-area
 import { SugarcaneDsYieldPredEntity } from '@interface/entities'
 import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { getRound } from 'src/core/utils'
 import { Repository } from 'typeorm'
 
 @Injectable()
@@ -36,14 +37,32 @@ export class YieldService {
 			)
 			.where('sdyp.region_id IS NOT NULL')
 
-		if (payload.startDate && payload.endDate) {
-			queryBuilderPlantTotal.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
-				startDate: payload.startDate,
-				endDate: payload.endDate,
+		// if (payload.startDate && payload.endDate) {
+		// 	queryBuilderPlantTotal.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
+		// 		startDate: payload.startDate,
+		// 		endDate: payload.endDate,
+		// 	})
+		// 	queryBuilderPlantResult.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
+		// 		startDate: payload.startDate,
+		// 		endDate: payload.endDate,
+		// 	})
+		// }
+		// เอา endDate ไปหาว่าข้อมูลตกในรอบไหนแล้วเอามาแสดง
+		if (payload.endDate) {
+			const dataSplit = payload.endDate.split('-')
+			const month = Number(dataSplit[1])
+			const year = Number(dataSplit[0])
+			const round = getRound(month, year)
+			queryBuilderPlantTotal.andWhere({ clsRound: round.round })
+			queryBuilderPlantTotal.andWhere('sdyp.cls_sdate >= :startDate AND sdyp.cls_edate <= :endDate', {
+				startDate: round.sDate,
+				endDate: round.eDate,
 			})
-			queryBuilderPlantResult.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
-				startDate: payload.startDate,
-				endDate: payload.endDate,
+
+			queryBuilderPlantResult.andWhere({ clsRound: round.round })
+			queryBuilderPlantResult.andWhere('sdyp.cls_sdate >= :startDate AND sdyp.cls_edate <= :endDate', {
+				startDate: round.sDate,
+				endDate: round.eDate,
 			})
 		}
 
@@ -111,18 +130,42 @@ export class YieldService {
 			)
 			.where('sdyp.region_id IS NOT NULL')
 
-		if (payload.startDate && payload.endDate) {
-			queryBuilderSumCoun.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
-				startDate: payload.startDate,
-				endDate: payload.endDate,
+		// if (payload.startDate && payload.endDate) {
+		// 	queryBuilderSumCoun.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
+		// 		startDate: payload.startDate,
+		// 		endDate: payload.endDate,
+		// 	})
+		// 	queryBuilderProductTotal.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
+		// 		startDate: payload.startDate,
+		// 		endDate: payload.endDate,
+		// 	})
+		// 	queryBuilderProductResult.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
+		// 		startDate: payload.startDate,
+		// 		endDate: payload.endDate,
+		// 	})
+		// }
+
+		if (payload.endDate) {
+			const dataSplit = payload.endDate.split('-')
+			const month = Number(dataSplit[1])
+			const year = Number(dataSplit[0])
+			const round = getRound(month, year)
+			queryBuilderSumCoun.andWhere({ clsRound: round.round })
+			queryBuilderSumCoun.andWhere('sdyp.cls_sdate >= :startDate AND sdyp.cls_edate <= :endDate', {
+				startDate: round.sDate,
+				endDate: round.eDate,
 			})
-			queryBuilderProductTotal.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
-				startDate: payload.startDate,
-				endDate: payload.endDate,
+
+			queryBuilderProductTotal.andWhere({ clsRound: round.round })
+			queryBuilderProductTotal.andWhere('sdyp.cls_sdate >= :startDate AND sdyp.cls_edate <= :endDate', {
+				startDate: round.sDate,
+				endDate: round.eDate,
 			})
-			queryBuilderProductResult.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
-				startDate: payload.startDate,
-				endDate: payload.endDate,
+
+			queryBuilderProductResult.andWhere({ clsRound: round.round })
+			queryBuilderProductResult.andWhere('sdyp.cls_sdate >= :startDate AND sdyp.cls_edate <= :endDate', {
+				startDate: round.sDate,
+				endDate: round.eDate,
 			})
 		}
 

@@ -241,23 +241,27 @@ export class ExportService {
 			})
 		}
 
-		if (payload.startDate && payload.endDate) {
-			queryBuilderRePlant.andWhere('sdra.cls_edate BETWEEN :startDate AND :endDate', {
-				startDate: payload.startDate,
-				endDate: payload.endDate,
+		if (payload.endDate) {
+			const dataSplit = payload.endDate.split('-')
+			const month = Number(dataSplit[1])
+			const year = Number(dataSplit[0])
+			const round = getRound(month, year)
+			queryBuilderRePlant.andWhere({ clsRound: round.round })
+			queryBuilderRePlant.andWhere('sdra.cls_sdate >= :startDate AND sdra.cls_edate <= :endDate', {
+				startDate: round.sDate,
+				endDate: round.eDate,
 			})
 		}
 		if (payload.admC) {
 			queryBuilderRePlant.andWhere('(sdra.o_adm1c = :admc or sdra.o_adm2c = :admc or sdra.o_adm3c = :admc)', {
 				admc: payload.admC,
 			})
-		} else {
-			if (payload.polygon) {
-				const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
-				queryBuilderRePlant.andWhere('ST_Within(sdra.geometry, ST_GeomFromText(:polygon, 4326))', {
-					polygon: formatePolygon,
-				})
-			}
+		}
+		if (payload.polygon) {
+			const formatePolygon = convertPolygonToWKT(JSON.parse(payload.polygon))
+			queryBuilderRePlant.andWhere('ST_Within(sdra.geometry, ST_GeomFromText(:polygon, 4326))', {
+				polygon: formatePolygon,
+			})
 		}
 
 		const repeatArea = await queryBuilderRePlant.getRawOne().then((item) => {

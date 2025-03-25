@@ -166,7 +166,6 @@ export class YieldAreaController {
 				const month = Number(dataSplit[1])
 				const year = Number(dataSplit[0])
 				const round = getRound(month, year)
-				console.log('👻 round1: ', round)
 
 				if (round.round !== 1) {
 					// ถ้าได้รอบ 2,3 ให้ไปใช้รอบ 1 ของปีนั้น
