@@ -194,11 +194,11 @@ export class YieldAreaController {
 					round.eDate = eDate
 				}
 				queryBuilderRePlant.andWhere({ clsRound: round.round })
-				queryBuilderRePlant.andWhere('sdra.cls_edate <= :endDate', { endDate: round.eDate })
-				// queryBuilderRePlant.andWhere('sdra.cls_sdate >= :startDate AND sdra.cls_edate <= :endDate', {
-				// 	startDate: round.sDate,
-				// 	endDate: round.eDate,
-				// })
+				// queryBuilderRePlant.andWhere('sdra.cls_edate <= :endDate', { endDate: round.eDate })
+				queryBuilderRePlant.andWhere('sdra.cls_sdate >= :startDate AND sdra.cls_edate <= :endDate', {
+					startDate: round.sDate,
+					endDate: round.eDate,
+				})
 			}
 
 			if (payload.admC) {
