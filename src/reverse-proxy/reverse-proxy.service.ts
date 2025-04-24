@@ -11,14 +11,14 @@ export class ReverseProxyService implements NestMiddleware {
 	constructor() {
 		// Configure the proxy to your Martin server
 		this.proxy = createProxyMiddleware({
-			target: process.env.PROXY_TILE_URL,
+			target: process.env.PROXY_TILE_URL || 'http://43.208.227.58:30002',
 			changeOrigin: true, // For vhosts
 			pathRewrite: (path) => {
-				// You can modify the path before forwarding if needed
-				return path
+				return path.replace('/tiles', '')
 			},
 			on: {
 				// proxyReq: (proxyReq, req, res) => {
+				// 	console.log('👻 proxyReq: ')
 				// 	// Here you can add authentication headers or logic based on your chosen method
 				// 	// Example: API Key in Header
 				// 	// const apiKey = req.headers['x-api-key']
@@ -30,7 +30,7 @@ export class ReverseProxyService implements NestMiddleware {
 				// 	// 	res.end(JSON.stringify({ message: 'Unauthorized' }))
 				// 	// 	proxyReq.destroy() // Abort the proxy request
 				// 	// 	return
-				// 	// }
+				// },
 
 				// 	// Example: Forwarding a session cookie (assuming session-based auth upstream)
 				// 	// const sessionCookie = req.cookies['sessionId'];
