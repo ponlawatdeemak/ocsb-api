@@ -33,6 +33,8 @@ import { LineService } from './core/line.service'
 import { HttpModule } from '@nestjs/axios'
 import { ScheduleModule } from '@nestjs/schedule'
 import { AppController } from './app.controller'
+import { ReverseProxyController } from './reverse-proxy/reverse-proxy.controller'
+import { ReverseProxyService } from './reverse-proxy/reverse-proxy.service'
 
 const imports = [
 	ConfigModule.forRoot({ isGlobal: true }),
@@ -66,7 +68,16 @@ const imports = [
 		YieldAreaController,
 		ExportController,
 		AppController,
+		ReverseProxyController,
 	],
-	providers: [RandomService, MailService, BurntAreaService, YieldService, ExportService, LineService],
+	providers: [
+		RandomService,
+		MailService,
+		BurntAreaService,
+		YieldService,
+		ExportService,
+		LineService,
+		ReverseProxyService,
+	],
 })
 export class AppModule {}
