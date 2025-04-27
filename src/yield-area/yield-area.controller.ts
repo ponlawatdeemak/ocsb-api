@@ -47,7 +47,7 @@ export class YieldAreaController {
 					`
                     jsonb_build_object(
                     'type', 'Feature',
-                    'geometry', ST_AsGeoJSON(sdyp.geometry)::jsonb,
+                    'geometry', ST_AsGeoJSON(ST_Centroid(sdyp.geometry))::jsonb,
                     'properties', jsonb_build_object(
                         'date', TO_CHAR(sdyp.cls_edate,'YYYY-MM-DD'),
                         'area',jsonb_build_object(
