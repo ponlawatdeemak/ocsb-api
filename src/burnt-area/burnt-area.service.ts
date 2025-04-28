@@ -97,15 +97,36 @@ export class BurntAreaService {
 			const today = new Date().toISOString().split('T')[0]
 			const month = generateMonthsFromRange(payload.startDate || today, payload.endDate || today)
 			const calcHotSpot = month.map((item) => {
-				const findData = hotspot.filter((e) => {
+				const monthData = hotspot.filter((e) => {
 					const { startDate, endDate } = getStartAndEndOfMonth(item)
 					const dateRaw = new Date(e.acq_date)
-					return dateRaw >= startDate && dateRaw <= endDate
+					const isInMonth = dateRaw >= startDate && dateRaw <= endDate
+					return isInMonth
+				})
+
+				const dateMonth = new Date(item)
+				const daysInMonth = new Date(dateMonth.getFullYear(), dateMonth.getMonth() + 1, 0).getDate()
+				let monthInSugarcane = 0
+				let monthNotInSugarcane = 0
+				const daily = {
+					inSugarcane: new Array(daysInMonth).fill(0),
+					notInSugarcane: new Array(daysInMonth).fill(0),
+				}
+				monthData.forEach((temp) => {
+					const dateIndex = new Date(temp.acq_date).getDate() - 1
+					if (temp.in_sugarcane) {
+						monthInSugarcane++
+						daily.inSugarcane[dateIndex]++
+					} else {
+						monthNotInSugarcane++
+						daily.notInSugarcane[dateIndex]++
+					}
 				})
 				return {
 					date: item,
-					inSugarcane: findData.filter((item) => item.in_sugarcane === true).length,
-					notInSugarcane: findData.filter((item) => item.in_sugarcane === false).length,
+					inSugarcane: monthInSugarcane,
+					notInSugarcane: monthNotInSugarcane,
+					daily,
 				}
 			})
 
