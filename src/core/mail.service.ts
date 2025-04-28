@@ -12,12 +12,16 @@ export class MailService {
 	) {}
 
 	async sendUserAccountCreated(userEmail: string, name: string, password: string) {
-		const loginUrl = this.configService.get<string>('FRONTEND_LOGIN_URL')
+		const loginUrl = `${process.env.APP_FE_URL}/auth/login`
+		const appLogoUrl = `${process.env.APP_FE_URL}/images/email/mail_header.png`
+		const ocsbLogoUrl = `${process.env.APP_FE_URL}/images/email/mail_ocsb_logo.png`
 		const html = pug.renderFile(path.join(__dirname, '../../views/userCreatedEmail.pug'), {
 			name,
 			username: userEmail,
 			password,
 			loginUrl,
+			appLogoUrl,
+			ocsbLogoUrl,
 		})
 		await this.mailerService.sendMail({
 			to: userEmail,
@@ -27,13 +31,17 @@ export class MailService {
 		})
 	}
 
-	async sendResetPassword(userEmail: string, name: string, resetLink: string, timeoutHours: number) {
+	async sendResetPassword(userEmail: string, name: string, resetLink: string) {
+		const appLogoUrl = `${process.env.APP_FE_URL}/images/email/mail_header.png`
+		const ocsbLogoUrl = `${process.env.APP_FE_URL}/images/email/mail_ocsb_logo.png`
 		const html = pug.renderFile(path.join(__dirname, '../../views/resetPasswordEmail.pug'), {
 			name,
 			userEmail,
 			resetLink,
-			timeoutHours,
+			appLogoUrl,
+			ocsbLogoUrl,
 		})
+
 		await this.mailerService.sendMail({
 			to: userEmail,
 			subject: 'ลืมรหัสผ่าน',

@@ -162,8 +162,8 @@ export class AuthController {
 		user.resetPasswordExpire = new Date(now.getTime() + 60 * 60 * 1000 * RESET_PASSWORD_TIMEOUT)
 		user.resetPasswordToken = resetToken
 		await this.userEntity.save(user)
-
-		await this.mailService.sendResetPassword(user.email, user.firstName, resetLink, RESET_PASSWORD_TIMEOUT)
+		const fullname = `${user.firstName} ${user.lastName}`
+		await this.mailService.sendResetPassword(user.email, fullname, resetLink)
 
 		return new ResponseDto({ data: { success: true } })
 	}

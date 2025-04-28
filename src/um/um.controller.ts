@@ -178,7 +178,11 @@ export class UMController {
 				await transactionalEntityManager.save(newUser)
 			}
 
-			await this.mailService.sendUserAccountCreated(payload.email, payload.firstName, newPassword)
+			await this.mailService.sendUserAccountCreated(
+				payload.email,
+				`${payload.firstName} ${payload.lastName}`,
+				newPassword,
+			)
 		})
 
 		return new ResponseDto({ data: { id: newUserId } })
