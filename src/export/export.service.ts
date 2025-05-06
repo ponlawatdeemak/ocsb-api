@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import * as ExcelJS from 'exceljs'
 import * as yazl from 'yazl'
-import { PassThrough } from 'stream'
 import {
 	SugarcaneDsBurnAreaDailyEntity,
 	SugarcaneDsRepeatAreaEntity,
@@ -24,9 +22,10 @@ import {
 	columnsYieldArea,
 	reportName,
 } from '@interface/config/report.config'
-import * as fs from 'fs'
-import * as path from 'path'
+import { ReadStream } from 'fs'
 import * as moment from 'moment-timezone'
+import { Readable } from 'stream'
+import { from, map, Observable, startWith, lastValueFrom } from 'rxjs'
 
 @Injectable()
 export class ExportService {
@@ -44,35 +43,53 @@ export class ExportService {
 		private readonly sugarcaneDsRepeatAreaEntity: Repository<SugarcaneDsRepeatAreaEntity>,
 	) {}
 
-	async generateCsv(columns: string[], rows: any[][], fileName: string, pathname?: string) {
-		const exportDir = path.join(__dirname, 'export', pathname || 'temp')
-		const uniqueFolder = `csv_${Date.now()}`
-		const folderPath = path.join(exportDir, uniqueFolder)
-		const filePath = path.join(folderPath, `${fileName}.csv`)
-		if (!fs.existsSync(folderPath)) {
-			fs.mkdirSync(folderPath, { recursive: true })
-		}
-		const workbook = new ExcelJS.Workbook()
-		const worksheet = workbook.addWorksheet(fileName)
-		worksheet.addRow(columns)
-		rows.forEach((row) => worksheet.addRow(row))
-		const csvBuffer: any = await workbook.csv.writeBuffer()
-		const utf8Buffer = Buffer.concat([Buffer.from('\uFEFF', 'utf8'), csvBuffer])
-		fs.writeFileSync(filePath, utf8Buffer)
-		return filePath
+	async generateCsv(columns: string[], rowStream: ReadStream, fileName: string) {
+		const rx = from(rowStream).pipe(
+			map(
+				(data) =>
+					Object.values(data)
+						.map((d) => (d != null ? `"${d}"` : ''))
+						.join(',') + '\n',
+			),
+			startWith(Buffer.from('\uFEFF', 'utf8'), Buffer.from(columns.map((col) => `"${col}"`).join(',') + '\n')),
+		)
+		return { stream: rx, fileName: `${fileName}.csv` }
 	}
 
-	async generateZip(Arraybuffer): Promise<Buffer> {
+	generateZip(items: any[]): NodeJS.ReadableStream {
 		const zip = new yazl.ZipFile()
-		for (let index = 0; index < Arraybuffer.length; index++) {
-			const element = Arraybuffer[index]
-			const fileName = path.basename(element)
-			zip.addFile(element, fileName)
+		for (let index = 0; index < items.length; index++) {
+			const element = items[index]
+			zip.addReadStream(this.toStream(element.stream), element.fileName)
 		}
-		const zipStream = new PassThrough()
-		zip.outputStream.pipe(zipStream)
-		zip.end()
-		return zipStream as any
+		lastValueFrom(from(items)).finally(() => {
+			zip.end()
+		})
+		return zip.outputStream
+	}
+
+	toStream(observable: Observable<any>, readable?: Readable) {
+		readable =
+			readable ??
+			new Readable({
+				// https://stackoverflow.com/q/74670330/4417769
+				read() {},
+				objectMode: true,
+				autoDestroy: true,
+			})
+
+		observable.subscribe({
+			next(value) {
+				readable.push(value)
+			},
+			complete() {
+				readable.push(null)
+			},
+			error(err) {
+				readable.destroy(err)
+			},
+		})
+		return readable
 	}
 
 	validateColumns(word, builder, area, weight) {
@@ -91,6 +108,8 @@ export class ExportService {
 				return `${builder}.${word}_${weight}`
 			case 'area':
 				return `${builder}.area_${area}`
+			case 'geometry':
+				return `ST_AsText(${builder}.geometry)`
 			default:
 				return `${builder}.${word}`
 		}
@@ -113,7 +132,7 @@ export class ExportService {
 	convertArrayToString(columns, builder, area, weight) {
 		return columns
 			.filter((word) => word.trim() !== '')
-			.map((word) => this.validateColumns(word, builder, area, weight))
+			.map((word) => `${this.validateColumns(word, builder, area, weight)} AS ${word}`)
 			.join(', ')
 	}
 
@@ -122,9 +141,7 @@ export class ExportService {
 		if (inSugarcaneFilter.length !== 0) {
 			const queryBuilderHotspot = this.sugarcaneHotspotEntity
 				.createQueryBuilder('sh')
-				.select(
-					`jsonb_agg(jsonb_build_array(${this.convertArrayToString(columnsHotspot, 'sh', payload.area, payload.weight)})) AS data`,
-				)
+				.select(this.convertArrayToString(columnsHotspot, 'sh', payload.area, payload.weight))
 				.where('sh.region_id IS NOT NULL')
 			if (inSugarcaneFilter.length === 1) {
 				queryBuilderHotspot.andWhere({ inSugarcane: inSugarcaneFilter[0] === hotspotTypeCode.inSugarcan })
@@ -146,12 +163,9 @@ export class ExportService {
 					polygon: formatePolygon,
 				})
 			}
-			const hotspot = await queryBuilderHotspot.getRawOne().then((item) => {
-				return item.data || []
-			})
-
+			const items = await queryBuilderHotspot.stream()
 			const reCheckColumns = await this.validateColumnsInCSV(columnsHotspot, payload.area, payload.weight)
-			const bufferHotspot = await this.generateCsv(reCheckColumns, hotspot, reportName.hotspont)
+			const bufferHotspot = await this.generateCsv(reCheckColumns, items, reportName.hotspont)
 			return bufferHotspot
 		}
 	}
@@ -159,9 +173,7 @@ export class ExportService {
 	async bufferBurnAreaService(payload: ExportHotspotBurntAreaDtoIn) {
 		const queryBuilderBurnArea = this.sugarcaneDsBurnAreaEntity
 			.createQueryBuilder('sdba')
-			.select(
-				`jsonb_agg(jsonb_build_array(${this.convertArrayToString(columnsBurnArea, 'sdba', payload.area, payload.weight)})) AS data`,
-			)
+			.select(this.convertArrayToString(columnsBurnArea, 'sdba', payload.area, payload.weight))
 			.where('sdba.region_id IS NOT NULL')
 		if (payload.startDate && payload.endDate) {
 			queryBuilderBurnArea.andWhere('DATE(sdba.detected_d) BETWEEN :startDate AND :endDate', {
@@ -182,20 +194,16 @@ export class ExportService {
 				polygon: formatePolygon,
 			})
 		}
-		const burnArea = await queryBuilderBurnArea.getRawOne().then((item) => {
-			return item.data || []
-		})
+		const items = await queryBuilderBurnArea.stream()
 		const reCheckColumns = await this.validateColumnsInCSV(columnsBurnArea, payload.area, payload.weight)
-		const bufferBurnArea = await this.generateCsv(reCheckColumns, burnArea, reportName.burntArea)
+		const bufferBurnArea = await this.generateCsv(reCheckColumns, items, reportName.burntArea)
 		return bufferBurnArea
 	}
 
 	async bufferYieldAreaService(payload: ExportHotspotBurntAreaDtoIn | ExportYieldAreaDtoIn) {
 		const queryBuilderYieldPred = this.sugarcaneDsYieldPredEntity
 			.createQueryBuilder('sdyp')
-			.select(
-				`jsonb_agg(jsonb_build_array(${this.convertArrayToString(columnsYieldArea, 'sdyp', payload.area, payload.weight)})) AS data`,
-			)
+			.select(this.convertArrayToString(columnsYieldArea, 'sdyp', payload.area, payload.weight))
 			.where('sdyp.region_id IS NOT NULL')
 		if (payload.endDate) {
 			const dataSplit = payload.endDate.split('-')
@@ -220,20 +228,16 @@ export class ExportService {
 				polygon: formatePolygon,
 			})
 		}
-		const yieldArea = await queryBuilderYieldPred.getRawOne().then((item) => {
-			return item.data || []
-		})
+		const items = await queryBuilderYieldPred.stream()
 		const reCheckColumns = await this.validateColumnsInCSV(columnsYieldArea, payload.area, payload.weight)
-		const bufferYieldArea = await this.generateCsv(reCheckColumns, yieldArea, reportName.plant)
+		const bufferYieldArea = await this.generateCsv(reCheckColumns, items, reportName.plant)
 		return bufferYieldArea
 	}
 
 	async bufferRepeatAreaService(payload: ExportYieldAreaDtoIn) {
 		const queryBuilderRePlant = this.sugarcaneDsRepeatAreaEntity
 			.createQueryBuilder('sdra')
-			.select(
-				`jsonb_agg(jsonb_build_array(${this.convertArrayToString(columnsRepeatArea, 'sdra', payload.area, payload.weight)})) AS data`,
-			)
+			.select(this.convertArrayToString(columnsRepeatArea, 'sdra', payload.area, payload.weight))
 			.where('sdra.region_id IS NOT NULL')
 		if (payload.repeat) {
 			queryBuilderRePlant.andWhere('sdra.repeat = :repeat', {
@@ -263,21 +267,16 @@ export class ExportService {
 				polygon: formatePolygon,
 			})
 		}
-
-		const repeatArea = await queryBuilderRePlant.getRawOne().then((item) => {
-			return item.data || []
-		})
+		const items = await queryBuilderRePlant.stream()
 		const reCheckColumns = await this.validateColumnsInCSV(columnsRepeatArea, payload.area, payload.weight)
-		const bufferRepeatArea = await this.generateCsv(reCheckColumns, repeatArea, reportName.plantRepeat)
+		const bufferRepeatArea = await this.generateCsv(reCheckColumns, items, reportName.plantRepeat)
 		return bufferRepeatArea
 	}
 
 	async bufferHotspotRegion(payload: ExportHotspotRegionDtoIn) {
 		const queryBuilderHotspot = this.sugarcaneHotspotEntity
 			.createQueryBuilder('sh')
-			.select(
-				`jsonb_agg(jsonb_build_array(${this.convertArrayToString(columnsHotspot, 'sh', areaType.km2, weightType.tom)})) AS data`,
-			)
+			.select(this.convertArrayToString(columnsHotspot, 'sh', areaType.km2, weightType.tom))
 			.where('sh.region_id =:regionId', { regionId: payload.regionId })
 		const round = Number(payload.round)
 		const date = moment().utcOffset(0, true).startOf('date').toDate()
@@ -298,12 +297,10 @@ export class ExportService {
 			endDate: dateEnd,
 		})
 
-		const hotspot = await queryBuilderHotspot.getRawOne().then((item) => {
-			return item.data || []
-		})
+		const items = await queryBuilderHotspot.stream()
 
 		const reCheckColumns = await this.validateColumnsInCSV(columnsHotspot, areaType.km2, weightType.tom)
-		const path = await this.generateCsv(reCheckColumns, hotspot, reportName.hotspont, 'line')
+		const path = await this.generateCsv(reCheckColumns, items, reportName.hotspont)
 		return path
 	}
 }
