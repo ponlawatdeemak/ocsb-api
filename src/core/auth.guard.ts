@@ -22,7 +22,10 @@ export class AuthGuard implements CanActivate {
 
 		const token = request.headers.authorization?.split('Bearer ')[1] || request.query.accessToken
 		if (!token) throw new UnauthorizedException(errorResponse.INVALID_TOKEN)
-
+		if (String(request.path).startsWith('/tiles')) {
+			// if bypass db query for proxy request
+			return true
+		}
 		try {
 			const data = jwt.verify(token, this.configService.get('JWT_SECRET')) as UserJwtPayload
 			if (!data && data.id) throw new UnauthorizedException(errorResponse.USER_NOT_FOUND)
