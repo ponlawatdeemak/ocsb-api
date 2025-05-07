@@ -8,8 +8,6 @@ import {
 import { validatePayload } from 'src/core/utils'
 import { mapTypeCode, yieldMapTypeCode } from '@interface/config/app.config'
 import { AuthGuard } from 'src/core/auth.guard'
-import * as fs from 'fs'
-import * as path from 'path'
 @Controller('export')
 export class ExportController {
 	constructor(private readonly exportService: ExportService) {}
@@ -35,25 +33,14 @@ export class ExportController {
 			arrayResponse.push(yieldPredData)
 		}
 		if (arrayResponse.length > 0) {
-			const zipStream: any = await this.exportService.generateZip(arrayResponse)
+			const zipStream = this.exportService.generateZip(arrayResponse)
 			const formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '_')
 			const zipname = `attachment; filename="hotspot_analyst_${formattedDate}.zip"`
 			res.set({
 				'Content-Type': 'application/zip',
 				'Content-Disposition': zipname,
 			})
-			zipStream.on('end', () => {
-				arrayResponse.forEach((file) => {
-					const folderPath = path.dirname(file)
-					fs.rm(folderPath, { recursive: true, force: true }, (err) => {
-						if (err) {
-							console.error(`Error deleting folder: ${folderPath}`, err)
-						}
-					})
-				})
-			})
-
-			return zipStream.pipe(res)
+			zipStream.pipe(res)
 		} else {
 			return res.send({})
 		}
@@ -64,23 +51,14 @@ export class ExportController {
 	async getHotspotRegion(@Req() req, @Res() res) {
 		const payload: ExportHotspotRegionDtoIn = req.params
 
-		const filepath = await this.exportService.bufferHotspotRegion(payload)
+		const fileStream = await this.exportService.bufferHotspotRegion(payload)
 		const formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '')
 		res.setHeader('Content-Type', 'text/csv')
 		res.setHeader(
 			'Content-Disposition',
 			`attachment; filename="hotspot_region${payload.regionId}_round${payload.round}_${formattedDate}.csv"`,
 		)
-
-		const fileStream = fs.createReadStream(filepath)
-		fileStream.pipe(res)
-
-		const folderPath = path.dirname(filepath)
-		fs.rm(folderPath, { recursive: true, force: true }, (err) => {
-			if (err) {
-				console.error(`Error deleting folder: ${folderPath}`, err)
-			}
-		})
+		fileStream.stream.pipe(res)
 	}
 
 	@Get('yield-area')
@@ -99,24 +77,15 @@ export class ExportController {
 			arrayResponse.push(RepearAreaData)
 		}
 		if (arrayResponse.length > 0) {
-			const zipStream: any = await this.exportService.generateZip(arrayResponse)
+			const zipStream = this.exportService.generateZip(arrayResponse)
+
 			const formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '_')
 			const zipname = `attachment; filename="plant_analyst_${formattedDate}.zip"`
-			res.set({
+			res.setHeader({
 				'Content-Type': 'application/zip',
 				'Content-Disposition': zipname,
 			})
-			zipStream.on('end', () => {
-				arrayResponse.forEach((file) => {
-					const folderPath = path.dirname(file)
-					fs.rm(folderPath, { recursive: true, force: true }, (err) => {
-						if (err) {
-							console.error(`Error deleting folder: ${folderPath}`, err)
-						}
-					})
-				})
-			})
-			return zipStream.pipe(res)
+			zipStream.pipe(res)
 		} else {
 			return res.send({})
 		}
