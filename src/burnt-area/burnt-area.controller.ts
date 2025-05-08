@@ -313,7 +313,7 @@ export class BurntAreaController {
 			SELECT 
 				TO_CHAR(sdba.detected_d , 'YYYY-MM-DD') AS detected_d
 			FROM 
-				sugarcane.sugarcane.sugarcane_ds_burn_area_daily sdba 
+				sugarcane.sugarcane_ds_burn_area_daily sdba 
 			GROUP BY 
 				TO_CHAR(sdba.detected_d, 'YYYY-MM-DD')
 			ORDER BY 

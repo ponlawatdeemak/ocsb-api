@@ -66,7 +66,7 @@ export class OverviewController {
 				COALESCE(SUM(sdba.area_km2), 0) AS km2, 
 				COALESCE(SUM(sdba.area_rai), 0) AS rai,
 				COALESCE(SUM(sdba.area_hexa), 0) AS hexa
-			FROM sugarcane.sugarcane.sugarcane_ds_burn_area_monthly sdba 
+			FROM sugarcane.sugarcane_ds_burn_area_monthly sdba 
 			WHERE TO_DATE(sdba.year || '-' || sdba.month || '-01', 'YYYY-MM-DD') BETWEEN DATE($1) AND DATE($2) 
 			`,
 			[new Date(yearLookupCondition.burnAreaStart), new Date(yearLookupCondition.burnAreaEnd)],
@@ -82,7 +82,7 @@ export class OverviewController {
 				SUM(sdyp.area_hexa) AS hexa, 
 				SUM(sdyp.production_kg) AS kg, 
 				SUM(sdyp.production_ton) AS ton
-			FROM sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
+			FROM sugarcane.sugarcane_ds_yield_pred sdyp 
 			WHERE 
 				sdyp.cls_round = $1 
 				AND sdyp.cls_sdate::DATE BETWEEN 
@@ -120,7 +120,7 @@ export class OverviewController {
 		const queryResult = await this.dataSource.query(
 			`with filtered_data as (
 				select * 
-				from sugarcane.sugarcane.sugarcane_hotspot
+				from sugarcane.sugarcane_hotspot
 				where acq_date between $1 and $2
 			), count_filtered_hotspot as (
 				select count(*) as total_count
@@ -135,8 +135,8 @@ export class OverviewController {
 				count(*) as region_count,
 				round((count(*) * 100.0) / (select total_count from count_filtered_hotspot), 2) as region_hotspot
 			from filtered_data fd
-			left join sugarcane.sugarcane.regions r on fd.region_id = r.region_id 
-			left join sugarcane.sugarcane.provinces p on fd.region_id = p.region_id 
+			left join sugarcane.regions r on fd.region_id = r.region_id 
+			left join sugarcane.provinces p on fd.region_id = p.region_id 
 			where fd.region_id < 5 and fd.region_id is not null
 			group by fd.region_id ,r.region_name,r.region_name_en 
 			order by fd.region_id
@@ -175,9 +175,9 @@ export class OverviewController {
 					COUNT(*) AS region_count, 
 					COUNT(CASE WHEN sh.in_sugarcane = true THEN 1 END) AS in_sugarcane, 
 					COUNT(CASE WHEN sh.in_sugarcane = false THEN 1 END) AS not_in_sugarcane 
-				from sugarcane.sugarcane.regions r
-				left join sugarcane.sugarcane.provinces p on r.region_id = p.region_id 
-				left join sugarcane.sugarcane.sugarcane_hotspot sh on r.region_id = sh.region_id		
+				from sugarcane.regions r
+				left join sugarcane.provinces p on r.region_id = p.region_id 
+				left join sugarcane.sugarcane_hotspot sh on r.region_id = sh.region_id		
 				where sh.acq_date 
 					BETWEEN $1 and $2  and 
 					r.region_id < 5
@@ -208,8 +208,8 @@ export class OverviewController {
 		const queryResult = await this.dataSource.query(
 			`WITH month_series AS (
 				SELECT generate_series(
-					(SELECT DATE_TRUNC('month', yp.burn_area_start) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), 
-					(SELECT DATE_TRUNC('month', yp.burn_area_end) FROM sugarcane.sugarcane.year_production yp WHERE yp.id = $1), 
+					(SELECT DATE_TRUNC('month', yp.burn_area_start) FROM sugarcane.year_production yp WHERE yp.id = $1), 
+					(SELECT DATE_TRUNC('month', yp.burn_area_end) FROM sugarcane.year_production yp WHERE yp.id = $1), 
 					'1 month'
 				)::date AS month
 			),
@@ -219,8 +219,8 @@ export class OverviewController {
 					r.region_name_en,
 					ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces,
 					ARRAY_AGG(DISTINCT p.province_name_en ORDER BY p.province_name_en) AS provinces_en
-				FROM sugarcane.sugarcane.regions r
-				LEFT JOIN sugarcane.sugarcane.provinces p ON p.region_id = r.region_id
+				FROM sugarcane.regions r
+				LEFT JOIN sugarcane.provinces p ON p.region_id = r.region_id
 				WHERE r.region_id < 5
 				GROUP BY r.region_id
 			),
@@ -234,7 +234,7 @@ export class OverviewController {
 				    COALESCE(SUM(sdba.area_hexa), 0) AS hexa
 				FROM month_series ms
 				CROSS JOIN region_series rs
-				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_burn_area_monthly sdba
+				LEFT JOIN sugarcane.sugarcane_ds_burn_area_monthly sdba
 				    ON TO_DATE(sdba.year || '-' || sdba.month || '-01', 'YYYY-MM-DD') 
 				       BETWEEN DATE(ms.month) AND (DATE_TRUNC('MONTH', ms.month) + INTERVAL '1 MONTH - 1 day')::DATE
 				    AND sdba.region_id = rs.region_id
@@ -291,8 +291,8 @@ export class OverviewController {
 						SUM(sdyp2.area_rai) AS rai, 
 						SUM(sdyp2.area_km2) AS km2, 
 						SUM(sdyp2.area_hexa) AS hexa  
-					FROM sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp2 
-					JOIN sugarcane.sugarcane.year_production yp 
+					FROM sugarcane.sugarcane_ds_yield_pred sdyp2 
+					JOIN sugarcane.year_production yp 
 						ON yp.id = $2 
 					WHERE sdyp2.cls_round = yp.sugarcane_round 
 						AND sdyp2.cls_sdate::DATE BETWEEN 
@@ -313,20 +313,20 @@ export class OverviewController {
 					ROUND(COALESCE(SUM(sdyp.area_rai), 0)::numeric / (ta.rai::numeric) * 100, 2) AS rai_percent, 
 					ROUND(COALESCE(SUM(sdyp.area_km2), 0)::numeric / (ta.km2::numeric) * 100, 2) AS km2_percent, 
 					ROUND(COALESCE(SUM(sdyp.area_hexa), 0)::numeric / (ta.hexa::numeric) * 100, 2) AS hexa_percent
-				FROM sugarcane.sugarcane.regions r 
-				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
+				FROM sugarcane.regions r 
+				LEFT JOIN sugarcane.sugarcane_ds_yield_pred sdyp 
 					ON sdyp.region_id = r.region_id
 					AND sdyp.cls_round = $1
 					AND DATE(sdyp.cls_sdate) BETWEEN (
 						SELECT TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD')
-						FROM sugarcane.sugarcane.year_production yp 
+						FROM sugarcane.year_production yp 
 						WHERE yp.id = $2 
 					) AND (
 						SELECT (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
-						FROM sugarcane.sugarcane.year_production yp 
+						FROM sugarcane.year_production yp 
 						WHERE yp.id = $2 
 					)
-				LEFT JOIN sugarcane.sugarcane.provinces p 
+				LEFT JOIN sugarcane.provinces p 
 					ON p.region_id = r.region_id
 				LEFT JOIN total_area ta ON true  
 				where r.region_id < 5
@@ -388,24 +388,24 @@ export class OverviewController {
 				(SUM(sdyp.yield_sum_ton_km2)/SUM(sdyp.yield_coun)) as yield_mean_ton_km2, 
 				(SUM(sdyp.yield_sum_ton_rai)/SUM(sdyp.yield_coun)) as yield_mean_ton_rai, 
 				(SUM(sdyp.yield_sum_ton_hexa)/SUM(sdyp.yield_coun)) as yield_mean_ton_hexa 
-				FROM sugarcane.sugarcane.regions r 
-				LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
+				FROM sugarcane.regions r 
+				LEFT JOIN sugarcane.sugarcane_ds_yield_pred sdyp 
 					ON sdyp.region_id = r.region_id
 					AND sdyp.cls_round = ( 
 						SELECT yp.sugarcane_round 
-						FROM sugarcane.sugarcane.year_production yp 
+						FROM sugarcane.year_production yp 
 						WHERE yp.id = $1 
 					)
 					AND DATE(sdyp.cls_sdate) BETWEEN (
 						SELECT TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD') 
-						FROM sugarcane.sugarcane.year_production yp 
+						FROM sugarcane.year_production yp 
 						WHERE yp.id = $1 
 					) AND (
 						SELECT (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
-						FROM sugarcane.sugarcane.year_production yp 
+						FROM sugarcane.year_production yp 
 						WHERE yp.id = $1 
 					)
-				LEFT JOIN sugarcane.sugarcane.provinces p 
+				LEFT JOIN sugarcane.provinces p 
 					ON p.region_id = r.region_id
 				where r.region_id < 5 
 				group by r.region_id 
@@ -446,7 +446,7 @@ export class OverviewController {
 		const queryResult = await this.dataSource.query(
 			`WITH last_4_years AS ( 
 				SELECT * 
-				FROM sugarcane.sugarcane.year_production
+				FROM sugarcane.year_production
 				WHERE id <= $1 
 				ORDER BY id DESC
 				LIMIT 4 
@@ -463,9 +463,9 @@ export class OverviewController {
 				COALESCE(SUM(sdyp.production_kg), 0) as production_kg, 
 				COALESCE(SUM(sdyp.production_ton), 0) as production_ton 
 			FROM last_4_years yp 
-			CROSS JOIN sugarcane.sugarcane.regions r 
-			left join sugarcane.sugarcane.provinces p on p.region_id = r.region_id
-			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_yield_pred sdyp 
+			CROSS JOIN sugarcane.regions r 
+			left join sugarcane.provinces p on p.region_id = r.region_id
+			LEFT JOIN sugarcane.sugarcane_ds_yield_pred sdyp 
 				ON sdyp.region_id = r.region_id 
 				AND sdyp.cls_round = yp.sugarcane_round 
 				AND DATE(sdyp.cls_sdate) 
@@ -516,7 +516,7 @@ export class OverviewController {
 		const queryResult = await this.dataSource.query(
 			`WITH last_3_years AS ( 
 				SELECT * 
-				FROM sugarcane.sugarcane.year_production
+				FROM sugarcane.year_production
 				WHERE id <= $1 
 				ORDER BY id DESC
 				LIMIT 3 
@@ -530,7 +530,7 @@ export class OverviewController {
 					SUM(area_km2) as area_km2,
 					SUM(area_rai) as area_rai,
 					SUM(area_hexa) as area_hexa
-				FROM sugarcane.sugarcane.sugarcane_ds_repeat_area 
+				FROM sugarcane.sugarcane_ds_repeat_area 
 				WHERE repeat = 3 
 				GROUP BY region_id, repeat, cls_sdate
 			)
@@ -549,9 +549,9 @@ export class OverviewController {
 				COALESCE(100 * ra.area_hexa / NULLIF(SUM(sdra.area_hexa), 0), 0) AS hexa ,
 				sdra.cls_sdate
 			FROM last_3_years yp 
-			CROSS JOIN sugarcane.sugarcane.regions r 
-			left join sugarcane.sugarcane.provinces p on p.region_id = r.region_id
-			LEFT JOIN sugarcane.sugarcane.sugarcane_ds_repeat_area sdra 
+			CROSS JOIN sugarcane.regions r 
+			left join sugarcane.provinces p on p.region_id = r.region_id
+			LEFT JOIN sugarcane.sugarcane_ds_repeat_area sdra 
 				ON sdra.region_id = r.region_id  
 				AND sdra.cls_sdate BETWEEN 
 					TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD') 

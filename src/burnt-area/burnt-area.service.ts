@@ -226,21 +226,31 @@ export class BurntAreaService {
 		// // }
 		// const list = [...tempStart, ...calcBurnArea, ...tempEnd]
 
-		const adm1c = payload.admC
-		const adm2c = payload.admC
-		const adm3c = payload.admC
+		let adm1c = null
+		let adm2c = null
+		let adm3c = null
+		if (payload.admC) {
+			const length = payload.admC.toString().length
+			if (length === 2) {
+				adm1c = payload.admC
+			} else if (length === 4) {
+				adm2c = payload.admC
+			} else if (length === 6) {
+				adm3c = payload.admC
+			}
+		}
 		const startDate = payload.startDate
 		const endDate = payload.endDate
 
 		const queryResult = await this.dataSource.query(
 			`
 				SELECT * 
-				FROM sugarcane.get_burn_area_summary(    
+				FROM sugarcane.get_burn_area_summary(
 					p_o_adm1c := $1,
 					p_o_adm2c := $2,
 					p_o_adm3c := $3,
-					p_start_date := '$4',
-					p_end_date := '$5'
+					p_start_date := $4,
+					p_end_date := $5
 				);
 			`,
 			[adm1c, adm2c, adm3c, startDate, endDate],

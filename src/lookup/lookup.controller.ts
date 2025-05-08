@@ -53,7 +53,7 @@ export class LookupController {
 						1 AS level,
 						ST_Extent(ba.geometry) AS extend
 					FROM 
-						sugarcane.sugarcane.boundary_adm1 ba
+						sugarcane.boundary_adm1 ba
 					WHERE 
 						ba.o_adm1t ILIKE '%' || $1 || '%' 
 						OR ba.o_adm1e ILIKE '%' || $1 || '%'
@@ -74,9 +74,9 @@ export class LookupController {
 						2 AS level,
 						ST_Extent(ba2.geometry) AS extend
 					FROM 
-						sugarcane.sugarcane.boundary_adm2 ba2
+						sugarcane.boundary_adm2 ba2
 					JOIN 
-						sugarcane.sugarcane.boundary_adm1 ba 
+						sugarcane.boundary_adm1 ba 
 						ON ba2.o_adm1c = ba.o_adm1c
 					WHERE 
 						ba.o_adm1t ILIKE '%' || $1 || '%' 
@@ -100,12 +100,12 @@ export class LookupController {
 						3 AS level,
 						ST_Extent(ba3.geometry) AS extend
 					FROM 
-						sugarcane.sugarcane.boundary_adm3 ba3
+						sugarcane.boundary_adm3 ba3
 					JOIN 
-						sugarcane.sugarcane.boundary_adm2 ba2 
+						sugarcane.boundary_adm2 ba2 
 						ON ba3.o_adm2c = ba2.o_adm2c
 					JOIN 
-						sugarcane.sugarcane.boundary_adm1 ba 
+						sugarcane.boundary_adm1 ba 
 						ON ba2.o_adm1c = ba.o_adm1c
 					WHERE 
 						ba.o_adm1t ILIKE '%' || $1 || '%' 
@@ -176,7 +176,7 @@ export class LookupController {
 	async getRepeatArea(): Promise<ResponseDto<GetRepeatAreaLookupDtoOut[]>> {
 		const statement = `
 		select repeat 
-		from sugarcane.sugarcane.sugarcane_ds_repeat_area sdra 
+		from sugarcane.sugarcane_ds_repeat_area sdra 
 		group by repeat 
 		`
 		const result = await this.dataSource.query(statement)
