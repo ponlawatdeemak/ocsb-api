@@ -2,7 +2,7 @@ import { hotspotType, hotspotTypeCode } from '@interface/config/app.config'
 import { GetDashBoardBurntAreaDtoIn } from '@interface/dto/brunt-area/brunt-area.dto-in'
 import { SugarcaneDsBurnAreaDailyEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
 import { Injectable } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm'
 import {
 	generateMonthsFromRange,
 	getBurntMonthYearList,
@@ -11,7 +11,7 @@ import {
 	sumby,
 	validatePayload,
 } from 'src/core/utils'
-import { Repository, Brackets } from 'typeorm'
+import { Repository, Brackets, DataSource } from 'typeorm'
 
 @Injectable()
 export class BurntAreaService {
@@ -24,6 +24,9 @@ export class BurntAreaService {
 
 		@InjectRepository(SugarcaneDsYieldPredEntity)
 		private readonly sugarcaneDsYieldPredEntity: Repository<SugarcaneDsYieldPredEntity>,
+
+		@InjectDataSource()
+		private readonly dataSource: DataSource,
 	) {}
 
 	async hotspotService(payload: GetDashBoardBurntAreaDtoIn) {
@@ -140,88 +143,122 @@ export class BurntAreaService {
 	}
 
 	async burnAreaService(payload: GetDashBoardBurntAreaDtoIn) {
-		const queryBuilderBurnArea = this.sugarcaneDsBurnAreaEntity
-			.createQueryBuilder('sdba')
-			.select(
-				`
-                    sdba.id,
-                    sdba.detected_d,
-                    sdba.area_m2,
-                    sdba.area_km2,
-                    sdba.area_rai,
-                    sdba.area_hexa
-                    `,
-			)
-			.where('sdba.region_id IS NOT NULL')
-			.andWhere(
-				new Brackets((qb) => {
-					if (payload.admC) {
-						qb.orWhere(`sdba.o_adm3c = :admC`, { admC: payload.admC })
-						qb.orWhere(`sdba.o_adm2c = :admC`, { admC: payload.admC })
-						qb.orWhere(`sdba.o_adm1c = :admC`, { admC: payload.admC })
-					}
-				}),
-			)
-			.orderBy('detected_d')
+		// const queryBuilderBurnArea = this.sugarcaneDsBurnAreaEntity
+		// 	.createQueryBuilder('sdba')
+		// 	.select(
+		// 		`
+		//             sdba.id,
+		//             sdba.detected_d,
+		//             sdba.area_m2,
+		//             sdba.area_km2,
+		//             sdba.area_rai,
+		//             sdba.area_hexa
+		//             `,
+		// 	)
+		// 	.where('sdba.region_id IS NOT NULL')
+		// 	.andWhere(
+		// 		new Brackets((qb) => {
+		// 			if (payload.admC) {
+		// 				qb.orWhere(`sdba.o_adm3c = :admC`, { admC: payload.admC })
+		// 				qb.orWhere(`sdba.o_adm2c = :admC`, { admC: payload.admC })
+		// 				qb.orWhere(`sdba.o_adm1c = :admC`, { admC: payload.admC })
+		// 			}
+		// 		}),
+		// 	)
+		// 	.orderBy('detected_d')
 
-		// const payloadMonth = []
-		if (payload.startDate && payload.endDate) {
-			queryBuilderBurnArea.andWhere('DATE(sdba.detected_d) BETWEEN :startDate AND :endDate', {
-				startDate: payload.startDate,
-				endDate: payload.endDate,
-			})
-		}
+		// // const payloadMonth = []
+		// if (payload.startDate && payload.endDate) {
+		// 	queryBuilderBurnArea.andWhere('DATE(sdba.detected_d) BETWEEN :startDate AND :endDate', {
+		// 		startDate: payload.startDate,
+		// 		endDate: payload.endDate,
+		// 	})
+		// }
 
-		const burnArea = await queryBuilderBurnArea.getRawMany()
-		const allowedMonths = [10, 11, 12, 1, 2, 3, 4, 5] // พื้นที่เผาไหม้มีข้อมูลแค่เดือน ตุลาคม - พฤษภาคม
-		const burntMonth = getBurntMonthYearList(payload.startDate, payload.endDate, allowedMonths)
-		const calcBurnArea = burntMonth.map((itemMonth) => {
-			const filterData = burnArea.filter((item) => {
-				const dateData = new Date(item.detected_d)
-				const monthData = dateData.getMonth() + 1
-				const dateMonth = new Date(itemMonth)
-				const monthTemp = dateMonth.getMonth() + 1
-				return monthData === monthTemp
-			})
+		// const burnArea = await queryBuilderBurnArea.getRawMany()
+		// const allowedMonths = [10, 11, 12, 1, 2, 3, 4, 5] // พื้นที่เผาไหม้มีข้อมูลแค่เดือน ตุลาคม - พฤษภาคม
+		// const burntMonth = getBurntMonthYearList(payload.startDate, payload.endDate, allowedMonths)
+		// const calcBurnArea = burntMonth.map((itemMonth) => {
+		// 	const filterData = burnArea.filter((item) => {
+		// 		const dateData = new Date(item.detected_d)
+		// 		const monthData = dateData.getMonth() + 1
+		// 		const dateMonth = new Date(itemMonth)
+		// 		const monthTemp = dateMonth.getMonth() + 1
+		// 		return monthData === monthTemp
+		// 	})
 
+		// 	return {
+		// 		date: itemMonth,
+		// 		area: {
+		// 			m2: sumby(filterData, 'area_m2'),
+		// 			km2: sumby(filterData, 'area_km2'),
+		// 			rai: sumby(filterData, 'area_rai'),
+		// 			hexa: sumby(filterData, 'area_hexa'),
+		// 		},
+		// 	}
+		// })
+		// const tempStart = []
+		// const tempEnd = []
+		// // if (calcBurnArea.length < allowedMonths.length) {
+		// // 	const startDate = new Date(calcBurnArea[0].date)
+		// // 	const startMonth = startDate.getMonth() + 1
+		// // 	const startYear = startMonth >= 10 ? startDate.getFullYear() - 1 : startDate.getFullYear()
+		// // 	const endDate = new Date(calcBurnArea[calcBurnArea.length - 1].date)
+		// // 	const endMonth = endDate.getMonth() + 1
+		// // 	const endYear = endDate.getFullYear()
+		// // 	const startIdx = allowedMonths.findIndex((item) => item === startMonth)
+		// // 	const endIdx = allowedMonths.findIndex((item) => item === endMonth)
+
+		// // 	allowedMonths.forEach((month, idx) => {
+		// // 		if (idx < startIdx) {
+		// // 			tempStart.push({
+		// // 				date: `${startYear}-${month}-01`,
+		// // 				area: { m2: 0, km2: 0, rai: 0, hexa: 0 },
+		// // 			})
+		// // 		}
+		// // 		if (idx > endIdx) {
+		// // 			tempEnd.push({
+		// // 				date: `${endYear}-${month}-01`,
+		// // 				area: { m2: 0, km2: 0, rai: 0, hexa: 0 },
+		// // 			})
+		// // 		}
+		// // 	})
+		// // }
+		// const list = [...tempStart, ...calcBurnArea, ...tempEnd]
+
+		const adm1c = payload.admC
+		const adm2c = payload.admC
+		const adm3c = payload.admC
+		const startDate = payload.startDate
+		const endDate = payload.endDate
+
+		const queryResult = await this.dataSource.query(
+			`
+				SELECT * 
+				FROM sugarcane.get_burn_area_summary(    
+					p_o_adm1c := $1,
+					p_o_adm2c := $2,
+					p_o_adm3c := $3,
+					p_start_date := '$4',
+					p_end_date := '$5'
+				);
+			`,
+			[adm1c, adm2c, adm3c, startDate, endDate],
+		)
+
+		const list = queryResult.map((item) => {
 			return {
-				date: itemMonth,
+				date: `${item.year}-${item.month < 10 ? `0${item.month}` : item.month}-01`,
 				area: {
-					m2: sumby(filterData, 'area_m2'),
-					km2: sumby(filterData, 'area_km2'),
-					rai: sumby(filterData, 'area_rai'),
-					hexa: sumby(filterData, 'area_hexa'),
+					m2: item.total_union_area_m2,
+					km2: item.total_union_area_km2,
+					rai: item.total_union_area_rai,
+					hexa: item.total_union_area_hexa,
 				},
 			}
 		})
-		const tempStart = []
-		const tempEnd = []
-		// if (calcBurnArea.length < allowedMonths.length) {
-		// 	const startDate = new Date(calcBurnArea[0].date)
-		// 	const startMonth = startDate.getMonth() + 1
-		// 	const startYear = startMonth >= 10 ? startDate.getFullYear() - 1 : startDate.getFullYear()
-		// 	const endDate = new Date(calcBurnArea[calcBurnArea.length - 1].date)
-		// 	const endMonth = endDate.getMonth() + 1
-		// 	const endYear = endDate.getFullYear()
-		// 	const startIdx = allowedMonths.findIndex((item) => item === startMonth)
-		// 	const endIdx = allowedMonths.findIndex((item) => item === endMonth)
 
-		// 	allowedMonths.forEach((month, idx) => {
-		// 		if (idx < startIdx) {
-		// 			tempStart.push({
-		// 				date: `${startYear}-${month}-01`,
-		// 				area: { m2: 0, km2: 0, rai: 0, hexa: 0 },
-		// 			})
-		// 		}
-		// 		if (idx > endIdx) {
-		// 			tempEnd.push({
-		// 				date: `${endYear}-${month}-01`,
-		// 				area: { m2: 0, km2: 0, rai: 0, hexa: 0 },
-		// 			})
-		// 		}
-		// 	})
-		// }
-		const list = [...tempStart, ...calcBurnArea, ...tempEnd]
+		console.log('listData ', list)
 
 		return { list }
 	}
