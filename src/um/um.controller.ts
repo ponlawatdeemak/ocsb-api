@@ -19,7 +19,7 @@ import {
 import { PositionEntity, ProvincesEntity, RegionsEntity, RolesEntity, UsersEntity } from '@interface/entities'
 import { AuthGuard } from 'src/core/auth.guard'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
-import { Repository, EntityManager, In, Not } from 'typeorm'
+import { Repository, EntityManager, In, Not, IsNull } from 'typeorm'
 import { errorResponse } from '@interface/config/error.config'
 import {
 	DeleteImageUserDtoOut,
@@ -52,6 +52,7 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import * as XLSX from 'xlsx'
 import { importUserTemplate, ImportValidatorType, UserRole } from '@interface/config/um.config'
 import { MailService } from 'src/core/mail.service'
+import { isNull } from 'lodash'
 
 @Controller('um')
 export class UMController {
@@ -305,9 +306,11 @@ export class UMController {
 				}
 				if (element.condition?.userDuplicate && value) {
 					const user = await this.userEntity.findOne({
-						where: [{ [element.condition?.userDuplicate]: value }],
+						where: [{ [element.condition?.userDuplicate]: value, isDeleted: false }],
 					})
 					if (user) {
+						console.log('👻 element: ', element)
+						console.log('👻 value: ', value)
 						remarkList.push(`ข้อมูล${element?.title}ซ้ำ`)
 						hasError = true
 					}
@@ -400,6 +403,7 @@ export class UMController {
 			.getMany()
 
 		const role = await this.repoRoles.createQueryBuilder('role').select(['role.roleId', 'role.roleName']).getMany()
+		console.log('👻 role: ', role)
 
 		try {
 			const wb = XLSX.read(file.buffer, { type: 'buffer' })
