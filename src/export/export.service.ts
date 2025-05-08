@@ -245,12 +245,40 @@ export class ExportService {
 			})
 		}
 
+		// เอา endDate ไปหาว่าข้อมูลตกในรอบไหนแล้วเอามาแสดง
 		if (payload.endDate) {
 			const dataSplit = payload.endDate.split('-')
 			const month = Number(dataSplit[1])
 			const year = Number(dataSplit[0])
 			const round = getRound(month, year)
+
+			if (round.round !== 1) {
+				// ถ้าได้รอบ 2,3 ให้ไปใช้รอบ 1 ของปีนั้น
+				let monthDown
+				if (round.round === 2) {
+					monthDown = 4
+				} else if (round.round === 3) {
+					monthDown = 8
+				}
+				let sDate = moment(round.sDate).subtract(monthDown, 'months').toISOString().substring(0, 10)
+				const sDateSpliter = sDate.split('-')
+				const isEndMonth = Number(sDateSpliter[2]) === 31
+				if (isEndMonth) {
+					sDate = moment(sDate).add(2, 'days').toISOString().substring(0, 10)
+				}
+
+				const eDate = moment(round.eDate)
+					.subtract(monthDown, 'months')
+					.endOf('month')
+					.toISOString()
+					.substring(0, 10)
+
+				round.round = 1
+				round.sDate = sDate
+				round.eDate = eDate
+			}
 			queryBuilderRePlant.andWhere({ clsRound: round.round })
+			// queryBuilderRePlant.andWhere('sdra.cls_edate <= :endDate', { endDate: round.eDate })
 			queryBuilderRePlant.andWhere('sdra.cls_sdate >= :startDate AND sdra.cls_edate <= :endDate', {
 				startDate: round.sDate,
 				endDate: round.eDate,
