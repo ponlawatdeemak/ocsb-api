@@ -81,10 +81,9 @@ export class ExportController {
 
 			const formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '_')
 			const zipname = `attachment; filename="plant_analyst_${formattedDate}.zip"`
-			res.setHeader({
-				'Content-Type': 'application/zip',
-				'Content-Disposition': zipname,
-			})
+
+			res.setHeader('Content-Type', 'application/zip')
+			res.setHeader('Content-Disposition', zipname)
 			zipStream.pipe(res)
 		} else {
 			return res.send({})
