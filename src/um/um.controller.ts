@@ -282,18 +282,18 @@ export class UMController {
 		let totalImportableRow = 0
 		let totalNonImportableRow = 0
 
-		const jsonData = XLSX.utils.sheet_to_json(worksheet)
-		const totalRow = jsonData.length
+		const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+		const totalRow = jsonData.length - 1
 
 		const errorList: { rowNo: number; remarkList: string[] }[] = []
 
-		const validateRow = async (row: any, index: number) => {
+		const validateRow = async (row: any, jsonIndex: number) => {
 			const remarkList = []
 			let hasError = false
 
 			for (let index = 0; index < importUserTemplate.length; index++) {
 				const element = importUserTemplate[index]
-				let value = row[element.title]
+				let value = row[element.index]
 				if (element.fieldName === 'phone') {
 					if (!isNaN(value)) {
 						value = `0${value}`
@@ -327,7 +327,9 @@ export class UMController {
 					} else {
 						result = await this.entityManager
 							.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
-							.where({ [element.condition?.lookupField]: In(splitValue) })
+							.where({
+								[element.condition?.lookupField]: In(splitValue),
+							})
 							.orWhere({ [`${element.condition?.lookupField}En`]: In(splitValue) })
 							.getMany()
 					}
@@ -345,25 +347,15 @@ export class UMController {
 				}
 			}
 			if (hasError) {
-				return { hasError: hasError, errorItem: { rowNo: index + 1, remarkList } }
+				return { hasError: hasError, errorItem: { rowNo: jsonIndex + 1, remarkList } }
 			} else {
 				return { hasError: hasError }
 			}
 		}
 
-		for (let jsonIndex = 0; jsonIndex < jsonData.length; jsonIndex++) {
+		for (let jsonIndex = 1; jsonIndex < jsonData.length; jsonIndex++) {
 			const row = jsonData[jsonIndex]
-			Object.keys(row).forEach((oldCol) => {
-				const newCol = Buffer.from(oldCol, 'ascii').toString('utf-8')
-				let newValue = ''
-				if (row[oldCol] && typeof row[oldCol] === 'string') {
-					newValue = Buffer.from(row[oldCol], 'ascii').toString('utf-8')
-				}
-				row[newCol] = newValue
-				delete row[oldCol]
-			})
 			const validationResult = await validateRow(row, jsonIndex)
-
 			if (validationResult.hasError) {
 				totalNonImportableRow++
 				errorList.push(validationResult.errorItem)
@@ -413,60 +405,52 @@ export class UMController {
 			const wb = XLSX.read(file.buffer, { type: 'buffer' })
 			const sheetName: string = wb.SheetNames[0]
 			const worksheet: XLSX.WorkSheet = wb.Sheets[sheetName]
-			const jsonData = XLSX.utils.sheet_to_json(worksheet)
+			const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+			jsonData.shift()
+
 			const arrayOfObject = []
 			jsonData.forEach((item) => {
 				const object = {}
 				importUserTemplate.forEach((config) => {
-					if (item[config.title] !== null || item[config.title] !== undefined || item[config.title] !== '') {
+					if (item[config.index] !== null || item[config.index] !== undefined || item[config.index] !== '') {
 						if (config.validator.includes(ImportValidatorType.Lookup)) {
 							if (config.fieldName === 'position') {
 								const objPosition = position.find(
 									(p) =>
-										p.positionName.trim() === item?.[config.title]?.trim() ||
-										p.positionNameEn.trim() === item?.[config.title]?.trim(),
+										p.positionName.trim() === item?.[config.index]?.trim() ||
+										p.positionNameEn.trim() === item?.[config.index]?.trim(),
 								)
-
 								object[config.fieldName] = objPosition
 							}
-
 							if (config.fieldName === 'region') {
 								const objRegion = region.find(
 									(r) =>
-										r.regionName.trim() === item?.[config.title]?.trim() ||
-										r.regionNameEn.trim() === item?.[config.title]?.trim(),
+										r.regionName.trim() === item?.[config.index]?.trim() ||
+										r.regionNameEn.trim() === item?.[config.index]?.trim(),
 								)
-
 								object[config.fieldName] = objRegion
 							}
-
 							if (config.fieldName === 'regions') {
-								const splitRegion = item?.[config.title]?.toString()?.split(',')
-
+								const splitRegion = item?.[config.index]?.toString()?.split(',')
 								const res = region?.filter((r) => {
 									return !!splitRegion?.find((sReg) => sReg.toString().trim() === r.regionName.trim())
 								})
-
 								object[config.fieldName] = res
 							}
-
 							if (config.fieldName === 'role') {
-								const objRole = role.find((r) => r?.roleName?.trim() === item?.[config.title]?.trim())
-
+								const objRole = role.find((r) => r?.roleName?.trim() === item?.[config.index]?.trim())
 								object[config.fieldName] = objRole
 							}
-
 							if (config.fieldName === 'province') {
 								const objProvince = province.find(
 									(r) =>
-										r?.provinceName?.trim() === item?.[config.title]?.trim() ||
-										r?.provinceNameEn?.trim() === item?.[config.title]?.trim(),
+										r?.provinceName?.trim() === item?.[config.index]?.trim() ||
+										r?.provinceNameEn?.trim() === item?.[config.index]?.trim(),
 								)
-
 								object[config.fieldName] = objProvince
 							}
 						} else {
-							let value = item[config.title]
+							let value = item[config.index]
 							if (config.fieldName === 'phone') {
 								if (!isNaN(value)) {
 									value = `0${value}`
@@ -484,10 +468,8 @@ export class UMController {
 
 			await this.entityManager.transaction(async (transactionalEntityManager) => {
 				const list = transactionalEntityManager.create(UsersEntity, arrayOfObject)
-
 				await transactionalEntityManager.save(list)
 			})
-
 			return new ResponseDto({ data: { success: true } })
 		} catch (error) {
 			console.error(error)
