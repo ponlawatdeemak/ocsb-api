@@ -130,21 +130,6 @@ export class YieldService {
 			)
 			.where('sdyp.region_id IS NOT NULL')
 
-		// if (payload.startDate && payload.endDate) {
-		// 	queryBuilderSumCoun.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
-		// 		startDate: payload.startDate,
-		// 		endDate: payload.endDate,
-		// 	})
-		// 	queryBuilderProductTotal.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
-		// 		startDate: payload.startDate,
-		// 		endDate: payload.endDate,
-		// 	})
-		// 	queryBuilderProductResult.andWhere('sdyp.cls_edate BETWEEN :startDate AND :endDate', {
-		// 		startDate: payload.startDate,
-		// 		endDate: payload.endDate,
-		// 	})
-		// }
-
 		if (payload.endDate) {
 			const dataSplit = payload.endDate.split('-')
 			const month = Number(dataSplit[1])
