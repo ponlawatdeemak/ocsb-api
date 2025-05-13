@@ -543,17 +543,17 @@ export class OverviewController {
 				r.region_name_en, 
 				ARRAY_AGG(DISTINCT p.province_name ORDER BY p.province_name) AS provinces, 
 				ARRAY_AGG(DISTINCT p.province_name_en ORDER BY p.province_name_en) AS provinces_en, 
-				COALESCE(100 * ra.area_m2 / NULLIF(SUM(sdra.area_m2), 0), 0) AS m2, 
-				COALESCE(100 * ra.area_km2 / NULLIF(SUM(sdra.area_km2), 0), 0) AS km2, 
-				COALESCE(100 * ra.area_rai / NULLIF(SUM(sdra.area_rai), 0), 0) AS rai, 
-				COALESCE(100 * ra.area_hexa / NULLIF(SUM(sdra.area_hexa), 0), 0) AS hexa ,
-				sdra.cls_sdate
+				COALESCE(100 * ra.area_m2 / NULLIF(SUM(sdyp.area_m2), 0), 0) AS m2, 
+				COALESCE(100 * ra.area_km2 / NULLIF(SUM(sdyp.area_km2), 0), 0) AS km2, 
+				COALESCE(100 * ra.area_rai / NULLIF(SUM(sdyp.area_rai), 0), 0) AS rai, 
+				COALESCE(100 * ra.area_hexa / NULLIF(SUM(sdyp.area_hexa), 0), 0) AS hexa ,
+				sdyp.cls_sdate
 			FROM last_3_years yp 
 			CROSS JOIN sugarcane.regions r 
 			left join sugarcane.provinces p on p.region_id = r.region_id
-			LEFT JOIN sugarcane.sugarcane_ds_repeat_area sdra 
-				ON sdra.region_id = r.region_id  
-				AND sdra.cls_sdate BETWEEN 
+			LEFT JOIN sugarcane.sugarcane_ds_yield_pred sdyp
+				ON sdyp.region_id = r.region_id  
+				AND sdyp.cls_sdate BETWEEN 
 					TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD') 
 					AND (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
 			LEFT JOIN repeat_area ra  
@@ -562,7 +562,7 @@ export class OverviewController {
 					TO_DATE(yp.sugarcane_year || '-11-01', 'YYYY-MM-DD')  
 					AND (DATE_TRUNC('MONTH', TO_DATE((CAST(yp.sugarcane_year AS INTEGER) + 1) || '-03-01', 'YYYY-MM-DD')) - INTERVAL '1 day')::DATE
 			where r.region_id < 5
-			GROUP BY yp.id, yp.name, yp.name_en, r.region_id, ra.area_m2, ra.area_km2 ,ra.area_rai,ra.area_hexa,sdra.cls_sdate
+			GROUP BY yp.id, yp.name, yp.name_en, r.region_id, ra.area_m2, ra.area_km2 ,ra.area_rai,ra.area_hexa,sdyp.cls_sdate
 			ORDER BY yp.id ASC, r.region_id;  
 			`,
 			[payload.id],
