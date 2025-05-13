@@ -1,16 +1,9 @@
 import { hotspotType, hotspotTypeCode } from '@interface/config/app.config'
-import { GetDashBoardBurntAreaDtoIn } from '@interface/dto/brunt-area/brunt-area.dto-in'
+import { GetDashBoardBurntAreaDtoIn } from '@interface/dto/burnt-area/burnt-area.dto-in'
 import { SugarcaneDsBurnAreaDailyEntity, SugarcaneDsYieldPredEntity, SugarcaneHotspotEntity } from '@interface/entities'
 import { Injectable } from '@nestjs/common'
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm'
-import {
-	generateMonthsFromRange,
-	getBurntMonthYearList,
-	getRound,
-	getStartAndEndOfMonth,
-	sumby,
-	validatePayload,
-} from 'src/core/utils'
+import { generateMonthsFromRange, getRound, getStartAndEndOfMonth, validatePayload } from 'src/core/utils'
 import { Repository, Brackets, DataSource } from 'typeorm'
 
 @Injectable()
@@ -143,89 +136,6 @@ export class BurntAreaService {
 	}
 
 	async burnAreaService(payload: GetDashBoardBurntAreaDtoIn) {
-		// const queryBuilderBurnArea = this.sugarcaneDsBurnAreaEntity
-		// 	.createQueryBuilder('sdba')
-		// 	.select(
-		// 		`
-		//             sdba.id,
-		//             sdba.detected_d,
-		//             sdba.area_m2,
-		//             sdba.area_km2,
-		//             sdba.area_rai,
-		//             sdba.area_hexa
-		//             `,
-		// 	)
-		// 	.where('sdba.region_id IS NOT NULL')
-		// 	.andWhere(
-		// 		new Brackets((qb) => {
-		// 			if (payload.admC) {
-		// 				qb.orWhere(`sdba.o_adm3c = :admC`, { admC: payload.admC })
-		// 				qb.orWhere(`sdba.o_adm2c = :admC`, { admC: payload.admC })
-		// 				qb.orWhere(`sdba.o_adm1c = :admC`, { admC: payload.admC })
-		// 			}
-		// 		}),
-		// 	)
-		// 	.orderBy('detected_d')
-
-		// // const payloadMonth = []
-		// if (payload.startDate && payload.endDate) {
-		// 	queryBuilderBurnArea.andWhere('DATE(sdba.detected_d) BETWEEN :startDate AND :endDate', {
-		// 		startDate: payload.startDate,
-		// 		endDate: payload.endDate,
-		// 	})
-		// }
-
-		// const burnArea = await queryBuilderBurnArea.getRawMany()
-		// const allowedMonths = [10, 11, 12, 1, 2, 3, 4, 5] // พื้นที่เผาไหม้มีข้อมูลแค่เดือน ตุลาคม - พฤษภาคม
-		// const burntMonth = getBurntMonthYearList(payload.startDate, payload.endDate, allowedMonths)
-		// const calcBurnArea = burntMonth.map((itemMonth) => {
-		// 	const filterData = burnArea.filter((item) => {
-		// 		const dateData = new Date(item.detected_d)
-		// 		const monthData = dateData.getMonth() + 1
-		// 		const dateMonth = new Date(itemMonth)
-		// 		const monthTemp = dateMonth.getMonth() + 1
-		// 		return monthData === monthTemp
-		// 	})
-
-		// 	return {
-		// 		date: itemMonth,
-		// 		area: {
-		// 			m2: sumby(filterData, 'area_m2'),
-		// 			km2: sumby(filterData, 'area_km2'),
-		// 			rai: sumby(filterData, 'area_rai'),
-		// 			hexa: sumby(filterData, 'area_hexa'),
-		// 		},
-		// 	}
-		// })
-		// const tempStart = []
-		// const tempEnd = []
-		// // if (calcBurnArea.length < allowedMonths.length) {
-		// // 	const startDate = new Date(calcBurnArea[0].date)
-		// // 	const startMonth = startDate.getMonth() + 1
-		// // 	const startYear = startMonth >= 10 ? startDate.getFullYear() - 1 : startDate.getFullYear()
-		// // 	const endDate = new Date(calcBurnArea[calcBurnArea.length - 1].date)
-		// // 	const endMonth = endDate.getMonth() + 1
-		// // 	const endYear = endDate.getFullYear()
-		// // 	const startIdx = allowedMonths.findIndex((item) => item === startMonth)
-		// // 	const endIdx = allowedMonths.findIndex((item) => item === endMonth)
-
-		// // 	allowedMonths.forEach((month, idx) => {
-		// // 		if (idx < startIdx) {
-		// // 			tempStart.push({
-		// // 				date: `${startYear}-${month}-01`,
-		// // 				area: { m2: 0, km2: 0, rai: 0, hexa: 0 },
-		// // 			})
-		// // 		}
-		// // 		if (idx > endIdx) {
-		// // 			tempEnd.push({
-		// // 				date: `${endYear}-${month}-01`,
-		// // 				area: { m2: 0, km2: 0, rai: 0, hexa: 0 },
-		// // 			})
-		// // 		}
-		// // 	})
-		// // }
-		// const list = [...tempStart, ...calcBurnArea, ...tempEnd]
-
 		let adm1c = null
 		let adm2c = null
 		let adm3c = null
@@ -268,8 +178,6 @@ export class BurntAreaService {
 			}
 		})
 
-		console.log('listData ', list)
-
 		return { list }
 	}
 
@@ -286,12 +194,6 @@ export class BurntAreaService {
 			)
 			.where('syp.regionId IS NOT NULL')
 
-		// if (payload.startDate && payload.endDate) {
-		// 	queryBuilderYieldTotal.andWhere('DATE(syp.clsEdate) BETWEEN :startDate AND :endDate', {
-		// 		startDate: payload.startDate,
-		// 		endDate: payload.endDate,
-		// 	})
-		// }
 		// เอา endDate ไปหาว่าข้อมูลตกในรอบไหนแล้วเอามาแสดง
 		if (payload.endDate) {
 			const dataSplit = payload.endDate.split('-')
@@ -327,12 +229,6 @@ export class BurntAreaService {
 					}
 				}),
 			)
-		// if (payload.startDate && payload.endDate) {
-		// 	queryBuilderYieldPred.andWhere('DATE(syp.cls_edate) BETWEEN :startDate AND :endDate', {
-		// 		startDate: payload.startDate,
-		// 		endDate: payload.endDate,
-		// 	})
-		// }
 		if (payload.endDate) {
 			const dataSplit = payload.endDate.split('-')
 			const month = Number(dataSplit[1])

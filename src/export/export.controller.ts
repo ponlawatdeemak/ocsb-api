@@ -72,7 +72,6 @@ export class ExportController {
 			arrayResponse.push(yieldPredData)
 		}
 
-		console.log('👻 mapTypeFilter: ', mapTypeFilter)
 		if (mapTypeFilter.includes(yieldMapTypeCode.repeat)) {
 			const RepearAreaData = await this.exportService.bufferRepeatAreaService(payload)
 			arrayResponse.push(RepearAreaData)

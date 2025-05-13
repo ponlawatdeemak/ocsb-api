@@ -21,7 +21,7 @@ import { ConfigService } from '@nestjs/config'
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm'
 import * as bcrypt from 'bcryptjs'
 import * as jwt from 'jsonwebtoken'
-import { generateTokenHex, hashPassword, hash } from 'src/core/utils'
+import { generateTokenHex, hash } from 'src/core/utils'
 import { EntityManager, Repository } from 'typeorm'
 import { MailService } from 'src/core/mail.service'
 @Controller('auth')
@@ -42,12 +42,6 @@ export class AuthController {
 		@InjectRepository(BoundaryRegionEntity)
 		private readonly boundaryRegionEntity: Repository<BoundaryRegionEntity>,
 	) {}
-
-	@Post('/hash-password')
-	async hashPassword(@Body() body) {
-		const hashedPassword = await hashPassword(body.password)
-		return new ResponseDto({ data: hashedPassword })
-	}
 
 	@Post('/login')
 	async login(@Body() body: LoginAuthDtoIn): Promise<ResponseDto<LoginAuthDtoOut>> {
