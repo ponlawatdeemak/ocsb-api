@@ -100,6 +100,7 @@ export class ExportService {
 			case 'longitude':
 				return `ST_X(${builder}.geometry)`
 			case 'acq_date':
+				return `TO_CHAR((${builder}.${word}  + INTERVAL '7 hour'), 'DD/MM/YYYY')`
 			case 'cls_sdate':
 			case 'cls_edate':
 				return `TO_CHAR(${builder}.${word}, 'DD/MM/YYYY')`
