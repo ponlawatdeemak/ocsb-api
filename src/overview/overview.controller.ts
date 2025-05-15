@@ -57,9 +57,9 @@ export class OverviewController {
 		// TODO: check datetime
 		const cntHotspot = await this.sugarcaneHotspotEntity
 			.createQueryBuilder()
-			.where(`(acq_date + INTERVAL '7 hour') BETWEEN :hotspotStart AND :hotspotEnd`, {
-				hotspotStart: new Date(yearLookupCondition.hotspotStart),
-				hotspotEnd: new Date(yearLookupCondition.hotspotEnd),
+			.where(`Date(acq_date) BETWEEN :hotspotStart AND :hotspotEnd`, {
+				hotspotStart: yearLookupCondition.hotspotStart,
+				hotspotEnd: yearLookupCondition.hotspotEnd,
 			})
 			.getCount()
 
@@ -75,6 +75,7 @@ export class OverviewController {
 			`,
 			[new Date(yearLookupCondition.burnAreaStart), new Date(yearLookupCondition.burnAreaEnd)],
 		)
+
 		Object.keys(burnAreaQuery[0]).forEach((key) => {
 			burnAreaQuery[0][key] = Number(burnAreaQuery[0][key])
 		})
@@ -126,7 +127,7 @@ export class OverviewController {
 			`with filtered_data as (
 				select * 
 				from sugarcane.sugarcane_hotspot
-				where (acq_date + INTERVAL '7 hour') between $1 and $2
+				where Date(acq_date) between $1 and $2
 			), count_filtered_hotspot as (
 				select count(*) as total_count
 				from filtered_data
@@ -184,7 +185,7 @@ export class OverviewController {
 				from sugarcane.regions r
 				left join sugarcane.provinces p on r.region_id = p.region_id 
 				left join sugarcane.sugarcane_hotspot sh on r.region_id = sh.region_id		
-				where (sh.acq_date + INTERVAL '7 hour')
+				where Date(sh.acq_date)
 					BETWEEN $1 and $2  and 
 					r.region_id < 5
 				GROUP BY r.region_id,r.region_name,r.region_name_en 

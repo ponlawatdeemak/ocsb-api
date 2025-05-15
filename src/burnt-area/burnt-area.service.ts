@@ -28,19 +28,16 @@ export class BurntAreaService {
 		if (inSugarcaneFilter.length !== 0) {
 			let countHotspot = []
 
-			// TODO: Chec Date  not test
+			// TODO: Check Date
 			const queryBuilderHotspotCount = this.sugarcaneHotspotEntity
 				.createQueryBuilder('sh')
 				.where('sh.region_id IS NOT NULL')
 
 			if (payload.startDate && payload.endDate) {
-				queryBuilderHotspotCount.andWhere(
-					`(DATE(sh.acq_date) + INTERVAL '7 hour') BETWEEN :startDate AND :endDate`,
-					{
-						startDate: payload.startDate,
-						endDate: payload.endDate,
-					},
-				)
+				queryBuilderHotspotCount.andWhere(`DATE(sh.acq_date) BETWEEN :startDate AND :endDate`, {
+					startDate: payload.startDate,
+					endDate: payload.endDate,
+				})
 			}
 
 			queryBuilderHotspotCount.andWhere(
@@ -54,14 +51,14 @@ export class BurntAreaService {
 			)
 			countHotspot = await queryBuilderHotspotCount.getRawMany()
 
-			// TODO: check datetime not test
+			// TODO: check datetime
 			const queryBuilderHotspot = this.sugarcaneHotspotEntity
 				.createQueryBuilder('sh')
 				.select(
 					`
                     sh.id,
                     sh.in_sugarcane, 
-					(DATE(sh.acq_date) + INTERVAL '7 hour') as acq_date
+					DATE(sh.acq_date) as acq_date
                      `,
 				)
 				.where('sh.region_id IS NOT NULL')
@@ -78,13 +75,10 @@ export class BurntAreaService {
 				)
 
 			if (payload.startDate && payload.endDate) {
-				queryBuilderHotspot.andWhere(
-					`(DATE(sh.acq_date) + INTERVAL '7 hour') BETWEEN :startDate AND :endDate`,
-					{
-						startDate: payload.startDate,
-						endDate: payload.endDate,
-					},
-				)
+				queryBuilderHotspot.andWhere(`DATE(sh.acq_date) BETWEEN :startDate AND :endDate`, {
+					startDate: payload.startDate,
+					endDate: payload.endDate,
+				})
 			}
 
 			queryBuilderHotspot.andWhere(

@@ -118,15 +118,12 @@ export class BurntAreaController {
 				queryBuilderHotspot.andWhere({ inSugarcane: payload.inSugarcan[0] === hotspotTypeCode.inSugarcan })
 			}
 
-			// TODO: check datetime not Test
+			// TODO: check datetime
 			if (payload.startDate && payload.endDate) {
-				queryBuilderHotspot.andWhere(
-					`(DATE(sh.acq_date) + INTERVAL '7 hour') BETWEEN :startDate AND :endDate`,
-					{
-						startDate: payload.startDate,
-						endDate: payload.endDate,
-					},
-				)
+				queryBuilderHotspot.andWhere(`DATE(sh.acq_date) BETWEEN :startDate AND :endDate`, {
+					startDate: payload.startDate,
+					endDate: payload.endDate,
+				})
 			}
 			if (payload.admC) {
 				queryBuilderHotspot.andWhere('(sh.o_adm1c = :admc or sh.o_adm2c = :admc or sh.o_adm3c = :admc)', {
