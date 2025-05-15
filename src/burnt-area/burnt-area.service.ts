@@ -34,10 +34,13 @@ export class BurntAreaService {
 				.where('sh.region_id IS NOT NULL')
 
 			if (payload.startDate && payload.endDate) {
-				queryBuilderHotspotCount.andWhere(`DATE(sh.acq_date) BETWEEN :startDate AND :endDate`, {
-					startDate: payload.startDate,
-					endDate: payload.endDate,
-				})
+				queryBuilderHotspotCount.andWhere(
+					`DATE(sh.acq_date + INTERVAL '7 hour') BETWEEN :startDate AND :endDate`,
+					{
+						startDate: payload.startDate,
+						endDate: payload.endDate,
+					},
+				)
 			}
 
 			queryBuilderHotspotCount.andWhere(
@@ -58,7 +61,7 @@ export class BurntAreaService {
 					`
                     sh.id,
                     sh.in_sugarcane, 
-					DATE(sh.acq_date) as acq_date
+					DATE(sh.acq_date + INTERVAL '7 hour') as acq_date
                      `,
 				)
 				.where('sh.region_id IS NOT NULL')
@@ -75,7 +78,7 @@ export class BurntAreaService {
 				)
 
 			if (payload.startDate && payload.endDate) {
-				queryBuilderHotspot.andWhere(`DATE(sh.acq_date) BETWEEN :startDate AND :endDate`, {
+				queryBuilderHotspot.andWhere(`DATE(sh.acq_date + INTERVAL '7 hour') BETWEEN :startDate AND :endDate`, {
 					startDate: payload.startDate,
 					endDate: payload.endDate,
 				})

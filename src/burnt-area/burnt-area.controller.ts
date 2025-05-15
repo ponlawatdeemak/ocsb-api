@@ -120,7 +120,7 @@ export class BurntAreaController {
 
 			// TODO: check datetime
 			if (payload.startDate && payload.endDate) {
-				queryBuilderHotspot.andWhere(`DATE(sh.acq_date) BETWEEN :startDate AND :endDate`, {
+				queryBuilderHotspot.andWhere(`DATE(sh.acq_date + INTERVAL '7 hour') BETWEEN :startDate AND :endDate`, {
 					startDate: payload.startDate,
 					endDate: payload.endDate,
 				})

@@ -149,7 +149,7 @@ export class ExportService {
 				queryBuilderHotspot.andWhere({ inSugarcane: inSugarcaneFilter[0] === hotspotTypeCode.inSugarcan })
 			}
 			if (payload.startDate && payload.endDate) {
-				queryBuilderHotspot.andWhere(`DATE(sh.acq_date) BETWEEN :startDate AND :endDate`, {
+				queryBuilderHotspot.andWhere(`DATE(sh.acq_date + INTERVAL '7 hour') BETWEEN :startDate AND :endDate`, {
 					startDate: payload.startDate,
 					endDate: payload.endDate,
 				})
@@ -321,10 +321,10 @@ export class ExportService {
 			dateEnd = moment(date).add(17, 'hours')
 		}
 
-		queryBuilderHotspot.andWhere(`(sh.acq_date) > :startDate `, {
+		queryBuilderHotspot.andWhere(`(sh.acq_date + INTERVAL '7 hour') > :startDate `, {
 			startDate: dateStart,
 		})
-		queryBuilderHotspot.andWhere(`(sh.acq_date) <= :endDate`, {
+		queryBuilderHotspot.andWhere(`(sh.acq_date + INTERVAL '7 hour') <= :endDate`, {
 			endDate: dateEnd,
 		})
 

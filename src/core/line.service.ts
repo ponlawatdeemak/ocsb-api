@@ -33,6 +33,7 @@ export class LineService {
 	// @Cron('*/10 * * * *', { 		// every 10 min.
 	// @Cron('*/10 * * * * *', {	// every 10 sec.
 	@Cron(CronExpression.EVERY_DAY_AT_8AM, {
+		//@Cron('18 21 * * *', {
 		name: 'task_08_am',
 		timeZone: 'Asia/Bangkok',
 	})
@@ -41,6 +42,7 @@ export class LineService {
 	}
 
 	@Cron(CronExpression.EVERY_DAY_AT_5PM, {
+		// @Cron('19 21 * * *', {
 		name: 'task_05_pm',
 		timeZone: 'Asia/Bangkok',
 	})
@@ -177,8 +179,8 @@ ${regionMsg.join('\n')}`
 				SUM(CASE WHEN sh.in_sugarcane  = TRUE THEN 1 ELSE 0 END) AS in_sugarcane,
 				SUM(CASE WHEN in_sugarcane = FALSE THEN 1 ELSE 0 END) AS out_sugarcane
 			from sugarcane.sugarcane_hotspot sh
-			where (sh.acq_date > '${dateStart.toISOString()}' ) 
-			and (sh.acq_date <= '${dateEnd.toISOString()}' )
+			where ((sh.acq_date + INTERVAL '7 hour') > '${dateStart.toISOString()}' ) 
+			and ((sh.acq_date + INTERVAL '7 hour') <= '${dateEnd.toISOString()}' )
 			group by region_id
 		`
 		const temp = await this.entityManager.query(statement)
