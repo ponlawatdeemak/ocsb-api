@@ -240,6 +240,11 @@ export class UMController {
 			Object.assign(existingUser, payload)
 			existingUser.updatedBy = { userId: user?.id }
 			existingUser.updatedAt = new Date()
+			if (payload.img === null) {
+				existingUser.img = null
+			} else {
+				delete existingUser.img
+			}
 			if (payload.regions) {
 				const regions = await transactionalEntityManager.findBy(RegionsEntity, {
 					regionId: In(payload.regions),
