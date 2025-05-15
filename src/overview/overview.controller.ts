@@ -1,7 +1,7 @@
 import { ResponseDto } from '@interface/config/app.config'
 import { Controller, Get, Query, BadRequestException, Req } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Repository, Between } from 'typeorm'
+import { DataSource, Repository } from 'typeorm'
 import {
 	GetBurntOverviewDtoIn,
 	GetHeatPointsOverviewDtoIn,
@@ -54,11 +54,15 @@ export class OverviewController {
 	async getSummary(@Query() payload: GetSummaryOverviewDtoIn): Promise<ResponseDto<GetSummaryOverviewDtoOut>> {
 		if (!payload.id) throw new BadRequestException(errorResponse.ID_NOTFOUND)
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
-		const cntHotspot = await this.sugarcaneHotspotEntity.count({
-			where: {
-				acqDate: Between(new Date(yearLookupCondition.hotspotStart), new Date(yearLookupCondition.hotspotEnd)),
-			},
-		})
+		// TODO: check datetime
+		const cntHotspot = await this.sugarcaneHotspotEntity
+			.createQueryBuilder()
+			.where(`(acq_date + INTERVAL '7 hour') BETWEEN :hotspotStart AND :hotspotEnd`, {
+				hotspotStart: new Date(yearLookupCondition.hotspotStart),
+				hotspotEnd: new Date(yearLookupCondition.hotspotEnd),
+			})
+			.getCount()
+
 		const burnAreaQuery = await this.dataSource.query(
 			`
 			SELECT 
@@ -117,11 +121,12 @@ export class OverviewController {
 	): Promise<ResponseDto<GetHeatPointsOverviewDtoOut[]>> {
 		if (!payload.id) throw new BadRequestException(errorResponse.ID_NOTFOUND)
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
+		// TODO: check datetime
 		const queryResult = await this.dataSource.query(
 			`with filtered_data as (
 				select * 
 				from sugarcane.sugarcane_hotspot
-				where acq_date between $1 and $2
+				where (acq_date + INTERVAL '7 hour') between $1 and $2
 			), count_filtered_hotspot as (
 				select count(*) as total_count
 				from filtered_data
@@ -165,6 +170,7 @@ export class OverviewController {
 	): Promise<ResponseDto<GetHeatPointsSugarcaneOverviewDtoOut[]>> {
 		if (!payload.id) throw new BadRequestException(errorResponse.ID_NOTFOUND)
 		const yearLookupCondition = await this.yearProductionEntity.findOne({ where: { id: Number(payload.id) } })
+		// TODO: check datetime
 		const queryResult = await this.dataSource.query(
 			`SELECT 
 					r.region_id,
@@ -178,7 +184,7 @@ export class OverviewController {
 				from sugarcane.regions r
 				left join sugarcane.provinces p on r.region_id = p.region_id 
 				left join sugarcane.sugarcane_hotspot sh on r.region_id = sh.region_id		
-				where sh.acq_date 
+				where (sh.acq_date + INTERVAL '7 hour')
 					BETWEEN $1 and $2  and 
 					r.region_id < 5
 				GROUP BY r.region_id,r.region_name,r.region_name_en 
