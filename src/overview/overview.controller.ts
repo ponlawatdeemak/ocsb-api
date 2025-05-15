@@ -63,8 +63,6 @@ export class OverviewController {
 			})
 			.getCount()
 
-		console.log('cntHotspot ', cntHotspot)
-
 		const burnAreaQuery = await this.dataSource.query(
 			`
 			SELECT 
