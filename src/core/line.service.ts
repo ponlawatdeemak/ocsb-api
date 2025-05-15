@@ -169,7 +169,7 @@ ${regionMsg.join('\n')}`
 			dateStart = moment(date).add(7, 'hours')
 			dateEnd = moment(date).add(17, 'hours')
 		}
-		// TODO: check datetime
+
 		const statement = `
 			select 
 				region_id,
@@ -177,8 +177,8 @@ ${regionMsg.join('\n')}`
 				SUM(CASE WHEN sh.in_sugarcane  = TRUE THEN 1 ELSE 0 END) AS in_sugarcane,
 				SUM(CASE WHEN in_sugarcane = FALSE THEN 1 ELSE 0 END) AS out_sugarcane
 			from sugarcane.sugarcane_hotspot sh
-			where ((sh.acq_date  + INTERVAL '7 hour') > '${dateStart.toISOString()}' ) 
-			and ((sh.acq_date  + INTERVAL '7 hour') <= '${dateEnd.toISOString()}' )
+			where (sh.acq_date > '${dateStart.toISOString()}' ) 
+			and (sh.acq_date <= '${dateEnd.toISOString()}' )
 			group by region_id
 		`
 		const temp = await this.entityManager.query(statement)

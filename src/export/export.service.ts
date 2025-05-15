@@ -93,7 +93,6 @@ export class ExportService {
 	}
 
 	validateColumns(word, builder, area, weight) {
-		// TODO: test
 		switch (word) {
 			case 'latitude':
 				return `ST_Y(${builder}.geometry)`
@@ -140,7 +139,6 @@ export class ExportService {
 	async bufferHotspotService(payload: ExportHotspotBurntAreaDtoIn) {
 		const inSugarcaneFilter = payload?.inSugarcan ? validatePayload(payload?.inSugarcan) : []
 		if (inSugarcaneFilter.length !== 0) {
-			// TODO: check datetime not Test
 			const queryBuilderHotspot = this.sugarcaneHotspotEntity
 				.createQueryBuilder('sh')
 				.select(this.convertArrayToString(columnsHotspot, 'sh', payload.area, payload.weight))
@@ -149,13 +147,10 @@ export class ExportService {
 				queryBuilderHotspot.andWhere({ inSugarcane: inSugarcaneFilter[0] === hotspotTypeCode.inSugarcan })
 			}
 			if (payload.startDate && payload.endDate) {
-				queryBuilderHotspot.andWhere(
-					`(DATE(sh.acq_date) + INTERVAL '7 hour') BETWEEN :startDate AND :endDate`,
-					{
-						startDate: payload.startDate,
-						endDate: payload.endDate,
-					},
-				)
+				queryBuilderHotspot.andWhere('DATE(sh.acq_date) BETWEEN :startDate AND :endDate', {
+					startDate: payload.startDate,
+					endDate: payload.endDate,
+				})
 			}
 			if (payload.admC) {
 				queryBuilderHotspot.andWhere('(sh.o_adm1c = :admc or sh.o_adm2c = :admc or sh.o_adm3c = :admc)', {
@@ -307,7 +302,6 @@ export class ExportService {
 	}
 
 	async bufferHotspotRegion(payload: ExportHotspotRegionDtoIn) {
-		// TODO: check datetime not Test
 		const queryBuilderHotspot = this.sugarcaneHotspotEntity
 			.createQueryBuilder('sh')
 			.select(this.convertArrayToString(columnsHotspot, 'sh', areaType.km2, weightType.tom))
@@ -324,10 +318,10 @@ export class ExportService {
 			dateEnd = moment(date).add(17, 'hours')
 		}
 
-		queryBuilderHotspot.andWhere(`(sh.acq_date  + INTERVAL '7 hour') > :startDate `, {
+		queryBuilderHotspot.andWhere('sh.acq_date > :startDate ', {
 			startDate: dateStart,
 		})
-		queryBuilderHotspot.andWhere(`(sh.acq_date  + INTERVAL '7 hour') <= :endDate`, {
+		queryBuilderHotspot.andWhere('sh.acq_date <= :endDate', {
 			endDate: dateEnd,
 		})
 
