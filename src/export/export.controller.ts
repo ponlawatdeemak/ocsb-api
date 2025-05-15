@@ -58,7 +58,8 @@ export class ExportController {
 			'Content-Disposition',
 			`attachment; filename="hotspot_region${payload.regionId}_round${payload.round}_${formattedDate}.csv"`,
 		)
-		fileStream.stream.pipe(res)
+		const file = this.exportService.toStream(fileStream.stream)
+		file.pipe(res)
 	}
 
 	@Get('yield-area')
