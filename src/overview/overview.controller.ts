@@ -1,7 +1,7 @@
 import { ResponseDto } from '@interface/config/app.config'
 import { Controller, Get, Query, BadRequestException, Req } from '@nestjs/common'
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Repository, Between } from 'typeorm'
+import { DataSource, Repository } from 'typeorm'
 import {
 	GetBurntOverviewDtoIn,
 	GetHeatPointsOverviewDtoIn,
@@ -611,7 +611,7 @@ export class OverviewController {
 		const currentDate = moment().utcOffset(0, true).startOf('date').toISOString()
 		let count = 0
 		const update = String(payload.update || '')
-		let currentRow = await this.repoDaily.findOne({ where: { loginDate: currentDate } })
+		const currentRow = await this.repoDaily.findOne({ where: { loginDate: currentDate } })
 		if (update === 'true') {
 			//#region find user login info
 			const token = req.headers.authorization?.split('Bearer ')[1] || req.query.accessToken
@@ -639,12 +639,7 @@ export class OverviewController {
 				await this.repoDaily.increment({ loginDate: currentDate }, updateCol, incrementNumber)
 				currentRow[updateCol]++
 			} else {
-				currentRow = {
-					loginDate: currentDate,
-					loggedInUsers: isLogin ? 1 : 0,
-					notLoggedInUsers: !isLogin ? 1 : 0,
-				}
-				await this.repoDaily.insert(currentRow)
+				await this.insertDaily(isLogin, currentDate)
 			}
 		}
 		count = (currentRow.loggedInUsers || 0) + (currentRow.notLoggedInUsers || 0)
@@ -652,5 +647,15 @@ export class OverviewController {
 		return new ResponseDto<GetOverviewUsageDtoOut>({
 			data: { count },
 		})
+	}
+
+	insertDaily = async (isLogin: boolean, currentDate: string) => {
+		const loggedInUsers = isLogin ? 1 : 0,
+			currentRow = {
+				loginDate: currentDate,
+				loggedInUsers: loggedInUsers,
+				notLoggedInUsers: !isLogin ? 1 : 0,
+			}
+		await this.repoDaily.insert(currentRow)
 	}
 }
