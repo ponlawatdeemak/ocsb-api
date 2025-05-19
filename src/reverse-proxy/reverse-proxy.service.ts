@@ -11,7 +11,7 @@ export class ReverseProxyService implements NestMiddleware {
 	constructor() {
 		// Configure the proxy to your Martin server
 		this.proxy = createProxyMiddleware({
-			target: process.env.PROXY_TILE_URL || 'http://43.208.227.58:30002',
+			target: process.env.PROXY_TILE_URL || 'https://43.208.227.58:30002',
 			changeOrigin: true, // For vhosts
 			pathRewrite: (path) => {
 				return path.replace('/tiles', '')
