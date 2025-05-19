@@ -15,15 +15,15 @@ RUN addgroup --gid ${P_UID} ${P_USER_NAME} && \
 
 WORKDIR ${HOME}
 USER ${P_UID}
+ 
+COPY --chown=root:node --chmod=755 --from=builder package-lock.json ./
 
-ADD --chown="21001:21001" package*.json ./
-
-RUN npm ci --omit=dev && \
+RUN npm ci --ignore-scripts --omit=dev && \
 
     rm -rf package-lock.json .npmrc .npm
 
 # ADD --chown="21001:21001" assets ./assets
-ADD --chown="21001:21001" dist ./dist
+COPY --chown=root:node --chmod=755 --from=builder dist ./dist
 
-CMD npm run start:prod
+CMD ["npm", "run", "start:prod"]
 
