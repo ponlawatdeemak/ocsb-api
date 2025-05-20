@@ -25,16 +25,20 @@ RUN npm ci --ignore-scripts && \
 # Stage2: Build Image
 FROM node:22-alpine AS runner
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 ENV NODE_ENV=production HOME=/app
 	
 WORKDIR ${HOME}
 
-COPY  --from=builder /app/package.json ./
-COPY  --from=builder /app/package-lock.json ./
-COPY  --from=builder  /app/dist/ ./dist/
+COPY  --chown=root:node --chmod=755 --from=builder  /app/package.json ./
+COPY  --chown=root:node --chmod=755 --from=builder  /app/package-lock.json ./
+COPY  --chown=root:node --chmod=755 --from=builder   /app/dist/ ./dist/
 
 RUN npm ci --ignore-scripts --omit=dev && \
 	rm -rf package-lock.json
+
+USER appuser
 
 EXPOSE 3001
 
