@@ -1,28 +1,36 @@
-FROM node:22-alpine
+# Stage1: Build App
+FROM node:22-alpine AS builder
 
-ARG P_USER_NAME=app
-ARG P_UID=21001
+ENV HOME_DIR=/app
+WORKDIR ${HOME_DIR}
+COPY . ${HOME_DIR}
+
+RUN apk update && \
+    apk add git && \
+    git submodule update --init
+    
+WORKDIR ${HOME_DIR}/sugar-cane-interface 
+RUN npm ci --ignore-scripts
+WORKDIR ${HOME_DIR}
+RUN npm ci --ignore-scripts && \	
+	npm run build
+
+
+# Stage2: Build Image
+FROM node:22-alpine AS runner
+
 ENV NODE_ENV=production HOME=/app
-RUN apk add --no-cache curl
-
-
-# Create a new user to our new container and avoid the root userx
-RUN addgroup --gid ${P_UID} ${P_USER_NAME} && \
-    adduser --disabled-password --uid ${P_UID} ${P_USER_NAME} -G ${P_USER_NAME} && \
-    mkdir -p ${HOME} && \
-    chown -R ${P_UID}:${P_UID} ${HOME}
-
+	
 WORKDIR ${HOME}
-USER ${P_UID}
- 
-COPY --chown=root:node --chmod=755 package.json ./
-COPY --chown=root:node --chmod=755 package-lock.json ./
+
+COPY  --from=builder /app/package.json ./
+COPY  --from=builder /app/package-lock.json ./
+COPY  --from=builder  /app/dist/ ./dist/
 
 RUN npm ci --ignore-scripts --omit=dev && \
-    rm -rf package-lock.json .npmrc .npm
+	rm -rf package-lock.json
 
-# ADD --chown="21001:21001" assets ./assets
-COPY --chown=root:node --chmod=755 dist ./dist
+EXPOSE 3001
 
 CMD ["npm", "run", "start:prod"]
 
