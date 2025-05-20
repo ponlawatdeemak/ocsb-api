@@ -335,9 +335,7 @@ export class UMController {
 
 	checkValidator = async (element, value, remarkList, hasError) => {
 		if (element.fieldName === 'phone') {
-			if (!isNaN(value)) {
-				value = `0${value}`
-			}
+			value = this.checkNanPhone(value)
 		}
 		if (element.condition?.required && !value) {
 			remarkList.push(`กรุณาระบุ${element?.title}`)
@@ -360,14 +358,19 @@ export class UMController {
 			}
 		}
 
-		if (element.condition?.maxLength && value) {
-			if (value.toString().length > element.condition?.maxLength) {
-				remarkList.push(`${element?.title}ความยาวตัวอักษรเกินกำหนด`)
-				hasError = true
-			}
+		if (value.toString().length > element.condition?.maxLength) {
+			remarkList.push(`${element?.title}ความยาวตัวอักษรเกินกำหนด`)
+			hasError = true
 		}
 
 		return { value, hasError, remarkList }
+	}
+
+	checkNanPhone = (value) => {
+		if (!isNaN(value)) {
+			value = `0${value}`
+		}
+		return value
 	}
 
 	checkValidatorLookup = async (element, value) => {
