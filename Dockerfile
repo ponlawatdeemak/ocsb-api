@@ -3,7 +3,13 @@ FROM node:22-alpine AS builder
 
 ENV HOME_DIR=/app
 WORKDIR ${HOME_DIR}
-COPY . ${HOME_DIR}
+COPY ./src ${HOME_DIR}/src
+COPY ./views ${HOME_DIR}/views
+COPY package-lock.json ${HOME_DIR}/
+COPY package.json ${HOME_DIR}/
+COPY .gitmodules ${HOME_DIR}/
+COPY tsconfig.json ${HOME_DIR}/
+COPY ./.git ${HOME_DIR}/.git
 
 RUN apk update && \
     apk add git && \
