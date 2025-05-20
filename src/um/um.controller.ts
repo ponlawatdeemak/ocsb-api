@@ -292,63 +292,17 @@ export class UMController {
 		const errorList: { rowNo: number; remarkList: string[] }[] = []
 
 		const validateRow = async (row: any, jsonIndex: number) => {
-			const remarkList = []
+			let remarkList = []
 			let hasError = false
 
 			for (let index = 0; index < importUserTemplate.length; index++) {
 				const element = importUserTemplate[index]
-				let value = row[element.index]
-				if (element.fieldName === 'phone') {
-					if (!isNaN(value)) {
-						value = `0${value}`
-					}
-				}
-				if (element.condition?.required && !value) {
-					remarkList.push(`กรุณาระบุ${element?.title}`)
-					hasError = true
-				}
-				if (element.condition?.userDuplicate && value) {
-					const user = await this.userEntity.findOne({
-						where: [{ [element.condition?.userDuplicate]: value, isDeleted: false }],
-					})
-					if (user) {
-						remarkList.push(`ข้อมูล${element?.title}ซ้ำ`)
-						hasError = true
-					}
-				}
-				if (element.condition?.lookup && value) {
-					const splitValue = value
-						.toString()
-						.split(',')
-						.map((item) => item.trim())
-					let result = null
-					if (element.fieldName === 'role') {
-						result = await this.entityManager
-							.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
-							.where({ [element.condition?.lookupField]: In(splitValue) })
-							.andWhere({ roleId: In([UserRole.SuperAdmin, UserRole.Admin]) })
-							.getMany()
-					} else {
-						result = await this.entityManager
-							.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
-							.where({
-								[element.condition?.lookupField]: In(splitValue),
-							})
-							.orWhere({ [`${element.condition?.lookupField}En`]: In(splitValue) })
-							.getMany()
-					}
-					if (result.length === 0) {
-						remarkList.push(`ไม่พบประเภท${element?.title}`)
-						hasError = true
-					}
-				}
+				const value = row[element.index]
 
-				if (element.condition?.maxLength && value) {
-					if (value.toString().length > element.condition?.maxLength) {
-						remarkList.push(`${element?.title}ความยาวตัวอักษรเกินกำหนด`)
-						hasError = true
-					}
-				}
+				const res = await this.checkValidator(element, value, remarkList, hasError)
+
+				remarkList = res.remarkList
+				hasError = res.hasError
 			}
 			if (hasError) {
 				return { hasError: hasError, errorItem: { rowNo: jsonIndex + 1, remarkList } }
@@ -377,6 +331,62 @@ export class UMController {
 				errorList: errorList,
 			},
 		})
+	}
+
+	checkValidator = async (element, value, remarkList, hasError) => {
+		if (element.fieldName === 'phone') {
+			if (!isNaN(value)) {
+				value = `0${value}`
+			}
+		}
+		if (element.condition?.required && !value) {
+			remarkList.push(`กรุณาระบุ${element?.title}`)
+			hasError = true
+		}
+		if (element.condition?.userDuplicate && value) {
+			const user = await this.userEntity.findOne({
+				where: [{ [element.condition?.userDuplicate]: value, isDeleted: false }],
+			})
+			if (user) {
+				remarkList.push(`ข้อมูล${element?.title}ซ้ำ`)
+				hasError = true
+			}
+		}
+		if (element.condition?.lookup && value) {
+			const splitValue = value
+				.toString()
+				.split(',')
+				.map((item) => item.trim())
+			let result = null
+			if (element.fieldName === 'role') {
+				result = await this.entityManager
+					.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
+					.where({ [element.condition?.lookupField]: In(splitValue) })
+					.andWhere({ roleId: In([UserRole.SuperAdmin, UserRole.Admin]) })
+					.getMany()
+			} else {
+				result = await this.entityManager
+					.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
+					.where({
+						[element.condition?.lookupField]: In(splitValue),
+					})
+					.orWhere({ [`${element.condition?.lookupField}En`]: In(splitValue) })
+					.getMany()
+			}
+			if (result.length === 0) {
+				remarkList.push(`ไม่พบประเภท${element?.title}`)
+				hasError = true
+			}
+		}
+
+		if (element.condition?.maxLength && value) {
+			if (value.toString().length > element.condition?.maxLength) {
+				remarkList.push(`${element?.title}ความยาวตัวอักษรเกินกำหนด`)
+				hasError = true
+			}
+		}
+
+		return { value, hasError, remarkList }
 	}
 
 	@Post('/import/csv')
@@ -418,7 +428,7 @@ export class UMController {
 				importUserTemplate.forEach((config) => {
 					if (item[config.index] !== null || item[config.index] !== undefined || item[config.index] !== '') {
 						if (config.validator.includes(ImportValidatorType.Lookup)) {
-							object = this.checkValidatorLookup(item, config, { position, region, role, province })
+							object = this.checkImport(item, config, { position, region, role, province })
 						} else {
 							let value = item[config.index]
 							if (config.fieldName === 'phone') {
@@ -447,7 +457,7 @@ export class UMController {
 		}
 	}
 
-	checkValidatorLookup = (
+	checkImport = (
 		item,
 		config,
 		lookup: {
