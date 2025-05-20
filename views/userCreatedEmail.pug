@@ -1,0 +1,126 @@
+doctype html
+html
+  head
+    title New Login
+    style.
+      @import url('https://fonts.googleapis.com/css2?family=Prompt:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+      body {
+        font-family: Prompt, Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f4f4f4;
+        display: flex;
+        flex-direction: column;
+      }
+      .container {
+        width: 1200px;
+        font-size: 30px;
+      }
+      .header {
+        background: #003399;
+        height: 200px;
+        text-align: center;
+      }
+
+      .header img {
+        margin-top: 30px;
+      }
+
+      .content {
+        padding: 20px;
+        padding-left: 100px;
+        background: white;
+      }
+
+      .content .mail-to {
+        font-weight: bold;
+          font-size: 30px
+      }
+
+      .button {
+        display: inline-block;
+        background: #0044cc;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        margin-top: 10px;
+      }
+      
+
+       .text-blue {
+          color: #0E4CBC;
+       }
+
+  body
+    .container(style="zoom:50%;margin:auto;")
+      .app-container(style="box-shadow: 2px 2px 10px rgba(0,0,0,0.1);")
+        .header 
+          img(src="cid:app_logo", alt="App Logo", srcset="")
+        .content
+          div.mail-to(style="margin-top:48px;") เรียน คุณ#{name}
+          div.mail-body(style="margin-top:18px;")
+            div.body-1 สำนักงานคณะกรรมการอ้อยและน้ำตาลทรายขอเรียนให้ท่านทราบว่า
+            div.body-2 
+              span.text-blue ท่านได้รับสิทธิ์เข้าถึง
+              span ระบบการติดตามร่องรอยการเผาไหม้ในไร่อ้อยด้วยเทคโนโลยี
+            div.body-3 อวกาศและภูมิสารสนเทศระบบดาวเทียม  
+              
+            div(style="margin-top:48px;font-weight:bold;") ข้อมูลสำหรับการเข้าใช้งาน
+            div(style="color:#0E4CBC;") เข้าสู่ระบบได้ที่ : 
+              a(href=loginUrl) #{loginUrl}
+            div(style="color:#0E4CBC;") ชื่อผู้ใช้งาน : #{username}
+            div(style="color:#0E4CBC;") รหัสผ่าน : #{password} (กรุณาเปลี่ยนรหัสผ่านเพื่อความปลอดภัย)
+              
+            div(style="margin-top:48px;font-weight:bold;") ต้องการสอบถามข้อมูลเพิ่มเติม กรุณาติดต่อ
+            div(style="") อีเมล :  E-sarabun@OCSB.go.th
+            div(style="") โทรศัพท์ : 0 2430 6810
+  
+            div(style="margin-top:48px;") ขอบคุณสำหรับการเข้าร่วม
+            div(style="") ขอแสดงความนับถือ,
+            div(style="") สำนักงานคณะกรรมการอ้อยและน้ำตาลทราย
+  
+            div(style="margin-top:50px;margin-bottom:50px;width:1000px;height:1px;background-color:#000000;")
+  
+            div Dear #{name},
+            div(style="margin-top:18px;") The Office of the Cane and Sugar Board would like to inform
+            div(style="") 
+              span(style="color:#0E4CBC;")  you that you have been granted access
+              span(style="")  to the Sugarcane
+            div(style="") field burn tracking system using space technology and 
+            div(style="") geoinformation systems.
+  
+            div(style="margin-top:48px;font-weight:bold;") Access Information:
+            div(style="color:#0E4CBC;") Website : 
+              a(href=loginUrl) #{loginUrl}
+            div(style="color:#0E4CBC;") Username : #{username}
+            div(style="color:#0E4CBC;") Password : #{password} (Please change your password after
+            div(style="color:#0E4CBC;") logging in for security purposes)
+  
+            div(style="margin-top:48px;font-weight:bold;") For further inquiries, please contact:
+            div(style="") Email :  E-sarabun@OCSB.go.th
+            div(style="") Phone : 0 2430 6810
+  
+            div(style="margin-top:48px;") Thank you for your participation.
+            div(style="") Best regards,
+            div(style="margin-bottom:48px") The Office of the Cane and Sugar Board
+
+
+          
+      
+    
+      .ocsb-container(style="margin-top:20px;")
+        div(style="display:flex;margin:auto;width: max-content;")
+          div(style="")
+            img(src="cid:ocsb_logo" alt="ocsb logo")
+          table(style="display:flex; flex-direction:column; justify-content:center;")
+            tbody(style="padding-top:16px;")
+              tr
+                td(style="color:#003491;font-size:12px;") สำนักงานคณะกรรมการอ้อยและน้ำตาลทราย
+              tr
+                td(style="color:#049334;font-size:12px;")  Office of The Cane and Sugar Board
+      
+

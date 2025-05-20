@@ -1,0 +1,3 @@
+[submodule "ocsb-interface"]
+	path = ocsb-interface
+	url = ../ocsb-interface
