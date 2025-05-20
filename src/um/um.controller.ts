@@ -418,7 +418,7 @@ export class UMController {
 				importUserTemplate.forEach((config) => {
 					if (item[config.index] !== null || item[config.index] !== undefined || item[config.index] !== '') {
 						if (config.validator.includes(ImportValidatorType.Lookup)) {
-							object = this.checkValidatorLookup(item, config, position, region, role, province)
+							object = this.checkValidatorLookup(item, config, { position, region, role, province })
 						} else {
 							let value = item[config.index]
 							if (config.fieldName === 'phone') {
@@ -447,10 +447,19 @@ export class UMController {
 		}
 	}
 
-	checkValidatorLookup = (item, config, position, region, role, province) => {
+	checkValidatorLookup = (
+		item,
+		config,
+		lookup: {
+			position: PositionEntity[]
+			region: RegionsEntity[]
+			role: RolesEntity[]
+			province: ProvincesEntity[]
+		},
+	) => {
 		const object = {}
 		if (config.fieldName === 'position') {
-			const objPosition = position.find(
+			const objPosition = lookup.position.find(
 				(p) =>
 					p.positionName.trim() === item?.[config.index]?.trim() ||
 					p.positionNameEn.trim() === item?.[config.index]?.trim(),
@@ -458,7 +467,7 @@ export class UMController {
 			object[config.fieldName] = objPosition
 		}
 		if (config.fieldName === 'region') {
-			const objRegion = region.find(
+			const objRegion = lookup.region.find(
 				(r) =>
 					r.regionName.trim() === item?.[config.index]?.trim() ||
 					r.regionNameEn.trim() === item?.[config.index]?.trim(),
@@ -467,17 +476,17 @@ export class UMController {
 		}
 		if (config.fieldName === 'regions') {
 			const splitRegion = item?.[config.index]?.toString()?.split(',')
-			const res = region?.filter((r) => {
+			const res = lookup.region?.filter((r) => {
 				return !!splitRegion?.find((sReg) => sReg.toString().trim() === r.regionName.trim())
 			})
 			object[config.fieldName] = res
 		}
 		if (config.fieldName === 'role') {
-			const objRole = role.find((r) => r?.roleName?.trim() === item?.[config.index]?.trim())
+			const objRole = lookup.role.find((r) => r?.roleName?.trim() === item?.[config.index]?.trim())
 			object[config.fieldName] = objRole
 		}
 		if (config.fieldName === 'province') {
-			const objProvince = province.find(
+			const objProvince = lookup.province.find(
 				(r) =>
 					r?.provinceName?.trim() === item?.[config.index]?.trim() ||
 					r?.provinceNameEn?.trim() === item?.[config.index]?.trim(),
