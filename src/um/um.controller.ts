@@ -353,26 +353,7 @@ export class UMController {
 			}
 		}
 		if (element.condition?.lookup && value) {
-			const splitValue = value
-				.toString()
-				.split(',')
-				.map((item) => item.trim())
-			let result = null
-			if (element.fieldName === 'role') {
-				result = await this.entityManager
-					.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
-					.where({ [element.condition?.lookupField]: In(splitValue) })
-					.andWhere({ roleId: In([UserRole.SuperAdmin, UserRole.Admin]) })
-					.getMany()
-			} else {
-				result = await this.entityManager
-					.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
-					.where({
-						[element.condition?.lookupField]: In(splitValue),
-					})
-					.orWhere({ [`${element.condition?.lookupField}En`]: In(splitValue) })
-					.getMany()
-			}
+			const result = await this.checkValidatorLookup(element, value)
 			if (result.length === 0) {
 				remarkList.push(`ไม่พบประเภท${element?.title}`)
 				hasError = true
@@ -387,6 +368,31 @@ export class UMController {
 		}
 
 		return { value, hasError, remarkList }
+	}
+
+	checkValidatorLookup = async (element, value) => {
+		let result = null
+		const splitValue = value
+			.toString()
+			.split(',')
+			.map((item) => item.trim())
+		if (element.fieldName === 'role') {
+			result = await this.entityManager
+				.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
+				.where({ [element.condition?.lookupField]: In(splitValue) })
+				.andWhere({ roleId: In([UserRole.SuperAdmin, UserRole.Admin]) })
+				.getMany()
+		} else {
+			result = await this.entityManager
+				.createQueryBuilder(element.condition?.lookup, element.condition?.lookup)
+				.where({
+					[element.condition?.lookupField]: In(splitValue),
+				})
+				.orWhere({ [`${element.condition?.lookupField}En`]: In(splitValue) })
+				.getMany()
+		}
+
+		return result
 	}
 
 	@Post('/import/csv')
